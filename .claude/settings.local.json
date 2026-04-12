@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(export PATH=\"/usr/local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/*/bin:$PATH\")",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(brew --version)",
+      "Bash(curl -fsSL https://nodejs.org/dist/v22.15.0/node-v22.15.0-darwin-arm64.tar.xz -o /tmp/node.tar.xz)",
+      "Bash(mkdir -p ~/local/node)",
+      "Read(//private/tmp/**)",
+      "Bash(tar -xf node.tar.xz)",
+      "Bash(cp -r node-v22.15.0-darwin-arm64/* ~/local/node/)",
+      "Bash(~/local/node/bin/node --version)",
+      "Bash(export PATH=\"$HOME/local/node/bin:$PATH\")",
+      "Bash(npx --version)",
+      "Bash(rm -rf ~/local/node /tmp/node-v22.15.0-darwin-arm64 /tmp/node.tar.xz)",
+      "Bash(mkdir -p ~/local)",
+      "Bash(curl -fsSL https://nodejs.org/dist/v22.15.0/node-v22.15.0-darwin-arm64.tar.xz -o node.tar.xz)",
+      "Bash(mv node-v22.15.0-darwin-arm64 ~/local/node)",
+      "Bash(npx create-next-app@latest . --js --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --use-npm --no-turbopack)",
+      "Bash(npx create-next-app@latest fuel-app --js --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --use-npm --no-turbopack)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv fuel-app/* .)",
+      "Bash(rmdir fuel-app:*)",
+      "Bash(npm install:*)",
+      "Bash(cp -a fuel-app/. .)",
+      "Bash(rm -rf fuel-app)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node -e ':*)",
+      "Bash(node --input-type=module -e ':*)",
+      "Bash(curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_macOS_arm64.zip -o /tmp/gh.zip)",
+      "Bash(unzip -o gh.zip)",
+      "Bash(cp gh_2.67.0_macOS_arm64/bin/gh ~/local/node/bin/)",
+      "Bash(gh --version)",
+      "Bash(gh auth:*)"
+    ]
+  }
+}

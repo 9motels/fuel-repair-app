@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fuel-app",
+      "runtimeExecutable": "/Users/andrewhowell/local/node/bin/npx",
+      "runtimeArgs": ["next", "dev"],
+      "port": 3000,
+      "env": {
+        "PATH": "/Users/andrewhowell/local/node/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      }
+    }
+  ]
+}

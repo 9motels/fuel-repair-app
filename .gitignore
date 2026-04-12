@@ -36,6 +36,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local database
+fuel-inventory.db
+fuel-inventory.db-wal
+fuel-inventory.db-shm
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

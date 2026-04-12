@@ -1,65 +1,247 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import Link from "next/link";
+
+export default function Dashboard() {
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAll() {
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes] = await Promise.all([
+        fetch("/api/locations"),
+        fetch("/api/alerts"),
+        fetch("/api/purchases"),
+        fetch("/api/transfers"),
+        fetch("/api/repairs"),
+        fetch("/api/inventory"),
+      ]);
+      setData({
+        locations: await locRes.json(),
+        alerts: await alertRes.json(),
+        purchases: await purchRes.json(),
+        transfers: await transRes.json(),
+        repairs: await repRes.json(),
+        inventory: await invRes.json(),
+      });
+      setLoading(false);
+    }
+    fetchAll();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-slate-400">Loading dashboard...</div>;
+  }
+
+  const totalItems = new Set(data.inventory.map((i) => i.item_id)).size;
+  const totalStock = data.inventory.reduce((sum, i) => sum + i.quantity, 0);
+  const totalSpent = data.purchases.reduce((sum, p) => sum + p.quantity * p.unit_price, 0);
+
+  const stockByLocation = {};
+  data.inventory.forEach((inv) => {
+    if (!stockByLocation[inv.location_id]) {
+      stockByLocation[inv.location_id] = { name: inv.location_name, is_central: inv.is_central, totalQty: 0, itemCount: 0 };
+    }
+    stockByLocation[inv.location_id].totalQty += inv.quantity;
+    stockByLocation[inv.location_id].itemCount++;
+  });
+
+  const recentPurchases = data.purchases.slice(0, 5);
+  const recentTransfers = data.transfers.slice(0, 5);
+  const recentRepairs = data.repairs.slice(0, 5);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-sm text-slate-500 mt-1">Fuel Repair Inventory Overview</p>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
+          <p className="text-xs md:text-sm text-slate-500">Locations</p>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{data.locations.length}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
+          <p className="text-xs md:text-sm text-slate-500">Unique Items</p>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{totalItems}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
+          <p className="text-xs md:text-sm text-slate-500">Total Stock</p>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{totalStock.toLocaleString()}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
+          <p className="text-xs md:text-sm text-slate-500">Total Spent</p>
+          <p className="text-2xl md:text-3xl font-bold text-green-700 mt-1">${totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Low Stock Alerts */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Low Stock Alerts</h2>
+            {data.alerts.length > 0 && (
+              <span className="bg-red-100 text-red-700 text-xs px-2.5 py-1 rounded-full font-semibold">{data.alerts.length}</span>
+            )}
+          </div>
+          <div className="p-4">
+            {data.alerts.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">All stock levels are good</p>
+            ) : (
+              <div className="space-y-3">
+                {data.alerts.slice(0, 8).map((alert, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{alert.item_name}</p>
+                      <p className="text-xs text-slate-500">Total across all locations</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-red-600">{alert.total_quantity}</span>
+                      <span className="text-xs text-slate-400"> / {alert.min_quantity} {alert.unit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stock by Location */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="p-4 border-b border-slate-200">
+            <h2 className="font-semibold text-slate-900">Stock by Location</h2>
+          </div>
+          <div className="p-4">
+            {Object.keys(stockByLocation).length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">No inventory data yet</p>
+            ) : (
+              <div className="space-y-3">
+                {Object.values(stockByLocation).map((loc, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-slate-900">{loc.name}</p>
+                      {loc.is_central ? <span className="bg-amber-100 text-amber-800 text-xs px-1.5 py-0.5 rounded font-medium">Central</span> : null}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold text-slate-900">{loc.totalQty.toLocaleString()}</span>
+                      <span className="text-xs text-slate-400"> units ({loc.itemCount} items)</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Repairs */}
+      <div className="mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Recent Repairs</h2>
+            <Link href="/repairs" className="text-xs text-blue-600 hover:text-blue-800 font-medium">View all</Link>
+          </div>
+          <div className="p-4">
+            {recentRepairs.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">No repairs yet</p>
+            ) : (
+              <div className="space-y-3">
+                {recentRepairs.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{r.description || "Repair"}</p>
+                      <p className="text-xs text-slate-500">{r.repair_date} &middot; {r.location_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">${r.total_cost?.toFixed(2)}</p>
+                      <p className="text-xs text-slate-400">{r.items?.length || 0} items</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Purchases */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Recent Purchases</h2>
+            <Link href="/purchases" className="text-xs text-blue-600 hover:text-blue-800 font-medium">View all</Link>
+          </div>
+          <div className="p-4">
+            {recentPurchases.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">No purchases yet</p>
+            ) : (
+              <div className="space-y-3">
+                {recentPurchases.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{p.item_name}</p>
+                      <p className="text-xs text-slate-500">{p.purchase_date} &middot; {p.location_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">${(p.quantity * p.unit_price).toFixed(2)}</p>
+                      <p className="text-xs text-slate-400">x{p.quantity}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Transfers */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Recent Transfers</h2>
+            <Link href="/transfers" className="text-xs text-blue-600 hover:text-blue-800 font-medium">View all</Link>
+          </div>
+          <div className="p-4">
+            {recentTransfers.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">No transfers yet</p>
+            ) : (
+              <div className="space-y-3">
+                {recentTransfers.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{t.item_name}</p>
+                      <p className="text-xs text-slate-500">{t.from_location_name} &rarr; {t.to_location_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">x{t.quantity}</p>
+                      <p className="text-xs text-slate-400">{new Date(t.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick start guide for empty state */}
+      {data.locations.length === 0 && (
+        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
+          <h3 className="text-lg font-semibold text-blue-900">Get Started</h3>
+          <p className="text-sm text-blue-700 mt-2">
+            Start by adding your locations, then add your inventory items and log purchases.
           </p>
+          <div className="flex gap-3 justify-center mt-4">
+            <Link href="/locations" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+              Add Locations
+            </Link>
+            <Link href="/items" className="bg-white text-blue-700 border border-blue-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50">
+              Add Items
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
     </div>
   );
 }
