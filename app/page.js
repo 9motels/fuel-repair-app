@@ -78,7 +78,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Low Stock Alerts */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200">
           <div className="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -109,32 +109,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stock by Location */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-          <div className="p-4 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900">Stock by Location</h2>
-          </div>
-          <div className="p-4">
-            {Object.keys(stockByLocation).length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">No inventory data yet</p>
-            ) : (
-              <div className="space-y-3">
-                {Object.values(stockByLocation).map((loc, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-slate-900">{loc.name}</p>
-                      {loc.is_central ? <span className="bg-amber-100 text-amber-800 text-xs px-1.5 py-0.5 rounded font-medium">Central</span> : null}
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-slate-900">{loc.totalQty.toLocaleString()}</span>
-                      <span className="text-xs text-slate-400"> units ({loc.itemCount} items)</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Recent Repairs */}
