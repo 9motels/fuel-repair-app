@@ -36,24 +36,22 @@ export default function InventoryPage() {
     setSaving(null);
   }
 
-  async function quickAdjust(itemId, locationId, currentQty, delta) {
+  function quickAdjust(itemId, locationId, currentQty, delta) {
     const newQty = currentQty + delta;
-    const key = `${itemId}-${locationId}`;
-    setSaving(key);
 
-    // Optimistic update
+    // Instant UI update
     setInventory(prev => prev.map(inv =>
       String(inv.item_id) === String(itemId) && String(inv.location_id) === String(locationId)
         ? { ...inv, quantity: newQty }
         : inv
     ));
 
-    await fetch("/api/inventory", {
+    // Save in background — don't block the UI
+    fetch("/api/inventory", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ item_id: parseInt(itemId), location_id: parseInt(locationId), quantity: newQty }),
     });
-    setSaving(null);
   }
 
   function startEdit(itemId, locationId, currentQty) {
@@ -153,15 +151,15 @@ export default function InventoryPage() {
                         </div>
                       ) : (
                         <>
-                          <button onClick={() => quickAdjust(itemId, locId, qty, -1)} disabled={isSaving}
+                          <button onClick={() => quickAdjust(itemId, locId, qty, -1)}
                             className="w-10 h-10 flex items-center justify-center bg-red-100 text-red-700 rounded-lg text-xl font-bold hover:bg-red-200 active:bg-red-300 disabled:opacity-50">
                             −
                           </button>
                           <button onClick={() => startEdit(itemId, locId, qty)}
-                            className={`text-2xl font-bold min-w-[3rem] text-center ${isSaving ? "text-slate-400" : "text-slate-900"}`}>
+                            className={`text-2xl font-bold min-w-[3rem] text-center ${"text-slate-900"}`}>
                             {qty}
                           </button>
-                          <button onClick={() => quickAdjust(itemId, locId, qty, 1)} disabled={isSaving}
+                          <button onClick={() => quickAdjust(itemId, locId, qty, 1)}
                             className="w-10 h-10 flex items-center justify-center bg-green-100 text-green-700 rounded-lg text-xl font-bold hover:bg-green-200 active:bg-green-300 disabled:opacity-50">
                             +
                           </button>
@@ -178,7 +176,7 @@ export default function InventoryPage() {
                     const inv = data.locations[locId];
                     const qty = inv ? Number(inv.quantity) : 0;
                     const isEditing = editingCell?.itemId === itemId && editingCell?.locationId === locId;
-                    const isSaving = saving === `${itemId}-${locId}`;
+
 
                     return (
                       <div key={l.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-1.5">
@@ -194,15 +192,15 @@ export default function InventoryPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => quickAdjust(itemId, locId, qty, -1)} disabled={isSaving}
+                            <button onClick={() => quickAdjust(itemId, locId, qty, -1)}
                               className="w-7 h-7 flex items-center justify-center bg-red-100 text-red-700 rounded text-sm font-bold hover:bg-red-200 active:bg-red-300 disabled:opacity-50">
                               −
                             </button>
                             <button onClick={() => startEdit(itemId, locId, qty)}
-                              className={`text-sm font-semibold min-w-[2rem] text-center ${isSaving ? "text-slate-400" : qty === 0 ? "text-slate-400" : "text-slate-900"}`}>
+                              className={`text-sm font-semibold min-w-[2rem] text-center ${qty === 0 ? "text-slate-400" : "text-slate-900"}`}>
                               {qty}
                             </button>
-                            <button onClick={() => quickAdjust(itemId, locId, qty, 1)} disabled={isSaving}
+                            <button onClick={() => quickAdjust(itemId, locId, qty, 1)}
                               className="w-7 h-7 flex items-center justify-center bg-green-100 text-green-700 rounded text-sm font-bold hover:bg-green-200 active:bg-green-300 disabled:opacity-50">
                               +
                             </button>
