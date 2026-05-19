@@ -87,7 +87,7 @@ export default function RootLayout({ children }) {
         <aside className="hidden md:flex w-64 bg-slate-800 text-slate-200 flex-col min-h-screen shrink-0">
           <div className="p-5 border-b border-slate-700">
             <h1 className="text-lg font-bold text-white">Fuel Repair</h1>
-            <p className="text-xs text-slate-400 mt-1">Inventory Tracker · v0.1</p>
+            <p className="text-xs text-slate-400 mt-1">Inventory Tracker</p>
           </div>
           <nav className="flex-1 p-3 space-y-1">
             {navItems.map((item) => {
