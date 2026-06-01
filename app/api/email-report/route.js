@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { getDb } from '@/lib/db';
+import { renderRepairPdf } from '@/lib/repairPdf';
+
+// PDF rendering uses Node APIs (Buffer, streams, fonts) that aren't on Edge.
+export const runtime = 'nodejs';
+// Allow up to 30s for PDF generation + email send (Vercel default is 10s).
+export const maxDuration = 30;
 
 const FROM_ADDRESS = process.env.RESEND_FROM || 'onboarding@resend.dev';
 const TO_ADDRESS = process.env.REPAIR_REPORT_EMAIL || 'andrew@national9.com';
@@ -134,6 +140,19 @@ export async function POST(request) {
   let success = false;
   let errorMessage = '';
 
+  // Render the PDF receipt. If this throws we still send the email without
+  // the attachment so the user gets *something* and we log the PDF failure.
+  let pdfAttachment = null;
+  try {
+    const pdfBuffer = await renderRepairPdf(repair);
+    pdfAttachment = {
+      filename: `repair-${repair.id}-${repair.location_name.replace(/\s+/g, '_')}.pdf`,
+      content: pdfBuffer,
+    };
+  } catch (e) {
+    console.error('PDF render failed for repair', repairId, e);
+  }
+
   try {
     const result = await resend.emails.send({
       from: FROM_ADDRESS,
@@ -141,6 +160,7 @@ export async function POST(request) {
       subject,
       html,
       text,
+      ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
     });
     if (result.error) {
       errorMessage = result.error.message || JSON.stringify(result.error);
