@@ -10,9 +10,11 @@ export default function InventoryPage() {
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(null); // track which item is saving
+  const [lastRun, setLastRun] = useState(null);
+  const [checkingNow, setCheckingNow] = useState(false);
   const inputRef = useRef(null);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); fetchLastRun(); }, []);
 
   async function fetchAll() {
     const [invRes, locRes, itemRes] = await Promise.all([
@@ -21,6 +23,48 @@ export default function InventoryPage() {
     setInventory(await invRes.json());
     setLocations(await locRes.json());
     setItems(await itemRes.json());
+  }
+
+  async function fetchLastRun() {
+    try {
+      const res = await fetch("/api/cron/last-run?job=low_stock_alerts");
+      setLastRun(await res.json());
+    } catch (e) { /* ignore */ }
+  }
+
+  async function checkLowStockNow() {
+    if (!confirm("Check inventory for low stock and email a report now?")) return;
+    setCheckingNow(true);
+    try {
+      const res = await fetch("/api/alerts/run-now", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Check failed: ${data.errorMessage || data.error || "unknown"}`);
+      } else if (data.skipped) {
+        alert("Nothing is below minimum — no email sent.");
+      } else {
+        alert(`Sent. ${data.count} item${data.count === 1 ? "" : "s"} below minimum.`);
+      }
+      fetchLastRun();
+    } finally {
+      setCheckingNow(false);
+    }
+  }
+
+  function formatRelative(isoOrSqlTime) {
+    if (!isoOrSqlTime) return "never";
+    // SQLite datetime('now') is UTC without timezone — append Z so Date parses correctly.
+    const ts = typeof isoOrSqlTime === "string" && !isoOrSqlTime.endsWith("Z")
+      ? isoOrSqlTime + "Z"
+      : isoOrSqlTime;
+    const diff = Date.now() - new Date(ts).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
   }
 
   async function saveQty(item_id, location_id, quantity) {
@@ -93,9 +137,27 @@ export default function InventoryPage() {
     <div>
       {/* Sticky header with location selector */}
       <div className="sticky top-0 z-10 bg-slate-50 -mx-4 px-4 pt-2 pb-3 md:-mx-6 md:px-6 border-b border-slate-200 shadow-sm">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 gap-2">
           <h1 className="text-xl font-bold text-slate-900">Inventory</h1>
+          <button
+            onClick={checkLowStockNow}
+            disabled={checkingNow}
+            className="text-xs font-medium bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 disabled:opacity-60"
+            title={`Last checked: ${lastRun ? formatRelative(lastRun.ran_at) : "never"}`}
+          >
+            {checkingNow ? "Checking…" : "Check low stock"}
+          </button>
         </div>
+        <p className="text-xs text-slate-500 mb-2">
+          Last alert check: {lastRun
+            ? `${formatRelative(lastRun.ran_at)} — ${
+                lastRun.status === "sent" ? `${lastRun.low_stock_count} item${lastRun.low_stock_count === 1 ? "" : "s"} low, email sent` :
+                lastRun.status === "skipped_none_low" ? "nothing low" :
+                lastRun.status === "send_failed" ? "send failed" :
+                lastRun.status
+              }`
+            : "never"}
+        </p>
         <select value={filterLocation} onChange={(e) => { setFilterLocation(e.target.value); setEditingCell(null); }}
           className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">All Locations</option>
