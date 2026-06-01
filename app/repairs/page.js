@@ -16,6 +16,7 @@ export default function RepairsPage() {
 
   const [itemForm, setItemForm] = useState({ item_id: "", source_location_id: "", quantity: 1, unit_cost: "" });
   const [repairItems, setRepairItems] = useState([]);
+  const [closingId, setClosingId] = useState(null);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -93,6 +94,27 @@ export default function RepairsPage() {
     if (!confirm("Delete this repair record? (Inventory will NOT be restored)")) return;
     await fetch(`/api/repairs/${id}`, { method: "DELETE" });
     fetchAll();
+  }
+
+  async function handleCloseAndEmail(repair) {
+    if (!confirm(`Close repair #${repair.id} and email a report to the configured address? This cannot be undone.`)) return;
+    setClosingId(repair.id);
+    try {
+      const res = await fetch("/api/email-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repair_id: repair.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Email failed: ${data.error || "Unknown error"}`);
+        return;
+      }
+      alert(`Report sent to ${data.sent_to}.`);
+      fetchAll();
+    } finally {
+      setClosingId(null);
+    }
   }
 
   const runningTotal = repairItems.reduce((sum, i) => sum + i.quantity * i.unit_cost, 0);
@@ -260,6 +282,11 @@ export default function RepairsPage() {
                   {repair.pump_number && (
                     <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Pump {repair.pump_number}</span>
                   )}
+                  {repair.status === "closed" ? (
+                    <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">Closed</span>
+                  ) : (
+                    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Open</span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">{repair.repair_date}</p>
               </div>
@@ -278,6 +305,22 @@ export default function RepairsPage() {
                     <span className="font-medium">${(item.quantity * item.unit_cost).toFixed(2)}</span>
                   </div>
                 ))}
+              </div>
+            )}
+            {repair.status !== "closed" && (
+              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => handleCloseAndEmail(repair)}
+                  disabled={closingId === repair.id}
+                  className="text-sm font-medium bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {closingId === repair.id ? "Sending…" : "Close & Email Report"}
+                </button>
+              </div>
+            )}
+            {repair.status === "closed" && repair.closed_at && (
+              <div className="mt-2 text-xs text-slate-400">
+                Closed {new Date(repair.closed_at + "Z").toLocaleString()}
               </div>
             )}
           </div>
