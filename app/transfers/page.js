@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePerson } from "@/lib/personContext";
 
 export default function TransfersPage() {
+  const { currentPerson } = usePerson();
   const [transfers, setTransfers] = useState([]);
   const [items, setItems] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -45,6 +47,7 @@ export default function TransfersPage() {
         from_location_id: parseInt(form.from_location_id),
         to_location_id: parseInt(form.to_location_id),
         quantity: parseInt(form.quantity),
+        created_by_id: currentPerson?.id ?? null,
       }),
     });
     if (!res.ok) {
@@ -70,7 +73,9 @@ export default function TransfersPage() {
         </div>
         <button
           onClick={() => { setShowForm(!showForm); setError(""); }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          disabled={!currentPerson}
+          title={!currentPerson ? "Pick who you are first" : ""}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + New Transfer
         </button>
@@ -141,6 +146,7 @@ export default function TransfersPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600">To</th>
               <th className="text-center px-4 py-3 font-medium text-slate-600">Qty</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600">Notes</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600">Logged by</th>
             </tr>
           </thead>
           <tbody>
@@ -155,6 +161,7 @@ export default function TransfersPage() {
                 <td className="px-4 py-3 text-slate-600">{t.to_location_name}</td>
                 <td className="px-4 py-3 text-center font-semibold text-slate-900">{t.quantity}</td>
                 <td className="px-4 py-3 text-slate-500">{t.notes || "-"}</td>
+                <td className="px-4 py-3 text-slate-500">{t.created_by_name || "—"}</td>
               </tr>
             ))}
           </tbody>

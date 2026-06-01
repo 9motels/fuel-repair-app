@@ -4,7 +4,7 @@ import { getDb } from '@/lib/db';
 export async function GET(request, { params }) {
   const db = await getDb();
   const { id } = await params;
-  const repair = (await db.execute({ sql: `SELECT r.*, l.name as location_name FROM repairs r JOIN locations l ON r.location_id = l.id WHERE r.id = ?`, args: [id] })).rows[0];
+  const repair = (await db.execute({ sql: `SELECT r.*, l.name as location_name, p.name as created_by_name FROM repairs r JOIN locations l ON r.location_id = l.id LEFT JOIN people p ON r.created_by_id = p.id WHERE r.id = ?`, args: [id] })).rows[0];
   if (!repair) return NextResponse.json({ error: 'Repair not found' }, { status: 404 });
   const items = (await db.execute({ sql: `SELECT ri.*, it.name as item_name, it.part_number, it.unit, sl.name as source_location_name FROM repair_items ri JOIN items it ON ri.item_id = it.id JOIN locations sl ON ri.source_location_id = sl.id WHERE ri.repair_id = ?`, args: [id] })).rows;
   const total_cost = items.reduce((sum, i) => sum + Number(i.quantity) * Number(i.unit_cost), 0);

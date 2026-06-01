@@ -7,7 +7,7 @@ export async function GET(request) {
   const itemId = searchParams.get('item_id');
   const locationId = searchParams.get('location_id');
 
-  let sql = `SELECT p.*, it.name as item_name, it.part_number, l.name as location_name FROM purchases p JOIN items it ON p.item_id = it.id JOIN locations l ON p.location_id = l.id WHERE 1=1`;
+  let sql = `SELECT p.*, it.name as item_name, it.part_number, l.name as location_name, pe.name as created_by_name FROM purchases p JOIN items it ON p.item_id = it.id JOIN locations l ON p.location_id = l.id LEFT JOIN people pe ON p.created_by_id = pe.id WHERE 1=1`;
   const args = [];
   if (itemId) { sql += ' AND p.item_id = ?'; args.push(itemId); }
   if (locationId) { sql += ' AND p.location_id = ?'; args.push(locationId); }
@@ -20,14 +20,14 @@ export async function GET(request) {
 export async function POST(request) {
   const db = await getDb();
   const body = await request.json();
-  const { item_id, location_id, quantity, unit_price, vendor, purchase_date, notes } = body;
+  const { item_id, location_id, quantity, unit_price, vendor, purchase_date, notes, created_by_id } = body;
   if (!item_id || !location_id || !quantity || unit_price === undefined || !purchase_date) {
     return NextResponse.json({ error: 'item_id, location_id, quantity, unit_price, and purchase_date are required' }, { status: 400 });
   }
 
   const tx = await db.transaction('write');
   try {
-    const result = await tx.execute({ sql: 'INSERT INTO purchases (item_id, location_id, quantity, unit_price, vendor, purchase_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)', args: [item_id, location_id, quantity, unit_price, vendor || '', purchase_date, notes || ''] });
+    const result = await tx.execute({ sql: 'INSERT INTO purchases (item_id, location_id, quantity, unit_price, vendor, purchase_date, notes, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', args: [item_id, location_id, quantity, unit_price, vendor || '', purchase_date, notes || '', created_by_id || null] });
 
     // Upsert inventory
     const existing = await tx.execute({ sql: 'SELECT id, quantity as qty FROM inventory WHERE item_id = ? AND location_id = ?', args: [item_id, location_id] });

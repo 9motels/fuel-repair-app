@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePerson } from "@/lib/personContext";
 
 export default function PurchasesPage() {
+  const { currentPerson } = usePerson();
   const [purchases, setPurchases] = useState([]);
   const [items, setItems] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -35,6 +37,7 @@ export default function PurchasesPage() {
         location_id: parseInt(form.location_id),
         quantity: parseInt(form.quantity),
         unit_price: parseFloat(form.unit_price),
+        created_by_id: currentPerson?.id ?? null,
       }),
     });
     setForm({ item_id: "", location_id: "", quantity: 1, unit_price: "", vendor: "", purchase_date: new Date().toISOString().split("T")[0], notes: "" });
@@ -59,7 +62,9 @@ export default function PurchasesPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          disabled={!currentPerson}
+          title={!currentPerson ? "Pick who you are first" : ""}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + Log Purchase
         </button>
@@ -155,6 +160,7 @@ export default function PurchasesPage() {
               <th className="text-right px-4 py-3 font-medium text-slate-600">Unit Price</th>
               <th className="text-right px-4 py-3 font-medium text-slate-600">Total</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600">Vendor</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600">Logged by</th>
               <th className="text-right px-4 py-3 font-medium text-slate-600">Actions</th>
             </tr>
           </thead>
@@ -171,6 +177,7 @@ export default function PurchasesPage() {
                 <td className="px-4 py-3 text-right text-slate-600">${p.unit_price.toFixed(2)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-slate-900">${(p.quantity * p.unit_price).toFixed(2)}</td>
                 <td className="px-4 py-3 text-slate-600">{p.vendor || "-"}</td>
+                <td className="px-4 py-3 text-slate-500">{p.created_by_name || "—"}</td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>
                 </td>

@@ -43,7 +43,7 @@ function renderHtml(repair) {
     <div style="padding:20px 24px;background:#1e40af;color:#fff;">
       <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.8;">Repair Report</div>
       <div style="font-size:22px;font-weight:700;margin-top:4px;">Repair #${repair.id} &mdash; ${escapeHtml(repair.location_name)}</div>
-      <div style="font-size:14px;opacity:0.9;margin-top:4px;">${escapeHtml(repair.repair_date)}${repair.pump_number ? ` &middot; Pump ${repair.pump_number}` : ''}</div>
+      <div style="font-size:14px;opacity:0.9;margin-top:4px;">${escapeHtml(repair.repair_date)}${repair.pump_number ? ` &middot; Pump ${repair.pump_number}` : ''}${repair.created_by_name ? ` &middot; logged by ${escapeHtml(repair.created_by_name)}` : ''}</div>
     </div>
     <div style="padding:20px 24px;">
       ${repair.description ? `<p style="margin:0 0 12px;"><strong>Description:</strong> ${escapeHtml(repair.description)}</p>` : ''}
@@ -77,7 +77,7 @@ function renderHtml(repair) {
 function renderText(repair) {
   const lines = [
     `Repair #${repair.id} - ${repair.location_name}`,
-    `Date: ${repair.repair_date}${repair.pump_number ? ` - Pump ${repair.pump_number}` : ''}`,
+    `Date: ${repair.repair_date}${repair.pump_number ? ` - Pump ${repair.pump_number}` : ''}${repair.created_by_name ? ` - logged by ${repair.created_by_name}` : ''}`,
     '',
   ];
   if (repair.description) lines.push(`Description: ${repair.description}`);
@@ -92,8 +92,10 @@ function renderText(repair) {
 
 async function loadRepair(db, repairId) {
   const repairRow = (await db.execute({
-    sql: `SELECT r.*, l.name AS location_name
-          FROM repairs r JOIN locations l ON r.location_id = l.id
+    sql: `SELECT r.*, l.name AS location_name, p.name AS created_by_name
+          FROM repairs r
+          JOIN locations l ON r.location_id = l.id
+          LEFT JOIN people p ON r.created_by_id = p.id
           WHERE r.id = ?`,
     args: [repairId],
   })).rows[0];

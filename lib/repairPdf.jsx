@@ -83,6 +83,7 @@ function RepairDocument({ repair }) {
           <Text style={styles.headerMeta}>
             {repair.repair_date}
             {repair.pump_number ? ` · Pump ${repair.pump_number}` : ''}
+            {repair.created_by_name ? ` · logged by ${repair.created_by_name}` : ''}
           </Text>
         </View>
 

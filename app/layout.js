@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { PersonProvider, PersonPicker } from "@/lib/personContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,23 +39,27 @@ export default function RootLayout({ children }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className="h-full flex flex-col md:flex-row">
+        <PersonProvider>
         {/* Mobile header */}
         <header className="md:hidden bg-slate-800 text-white flex items-center justify-between px-4 py-3 shrink-0">
           <div>
             <h1 className="text-base font-bold">Fuel Repair</h1>
           </div>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 rounded-lg hover:bg-slate-700"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              {menuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <PersonPicker variant="header" />
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="p-2 rounded-lg hover:bg-slate-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                {menuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
         </header>
 
         {/* Mobile dropdown menu */}
@@ -110,6 +115,7 @@ export default function RootLayout({ children }) {
               );
             })}
           </nav>
+          <PersonPicker variant="sidebar" />
         </aside>
 
         {/* Main content */}
@@ -118,6 +124,7 @@ export default function RootLayout({ children }) {
             {children}
           </div>
         </main>
+        </PersonProvider>
       </body>
     </html>
   );

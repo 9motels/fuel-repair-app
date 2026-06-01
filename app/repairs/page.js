@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePerson } from "@/lib/personContext";
 
 export default function RepairsPage() {
+  const { currentPerson } = usePerson();
   const [repairs, setRepairs] = useState([]);
   const [items, setItems] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -80,6 +82,7 @@ export default function RepairsPage() {
         ...repairForm,
         location_id: parseInt(repairForm.location_id),
         pump_number: repairForm.pump_number ? parseInt(repairForm.pump_number) : null,
+        created_by_id: currentPerson?.id ?? null,
         items: repairItems.map(i => ({ item_id: i.item_id, source_location_id: i.source_location_id, quantity: i.quantity, unit_cost: i.unit_cost })),
       }),
     });
@@ -128,8 +131,12 @@ export default function RepairsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Repairs</h1>
           <p className="text-sm text-slate-500 mt-1">Track repairs and parts used</p>
         </div>
-        <button onClick={() => { setShowForm(!showForm); setError(""); setRepairItems([]); }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+        <button
+          onClick={() => { setShowForm(!showForm); setError(""); setRepairItems([]); }}
+          disabled={!currentPerson}
+          title={!currentPerson ? "Pick who you are first" : ""}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           + Log Repair
         </button>
       </div>
@@ -288,7 +295,9 @@ export default function RepairsPage() {
                     <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Open</span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">{repair.repair_date}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {repair.repair_date} <span className="text-slate-400">· logged by {repair.created_by_name || "—"}</span>
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-900">${repair.total_cost?.toFixed(2)}</span>
