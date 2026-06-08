@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePerson } from "@/lib/personContext";
 
 export default function RepairsPage() {
@@ -11,6 +11,10 @@ export default function RepairsPage() {
   const [inventory, setInventory] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all"); // all | open | closed
 
   const [repairForm, setRepairForm] = useState({
     location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "",
@@ -105,6 +109,55 @@ export default function RepairsPage() {
     await fetch(`/api/repairs/${id}`, { method: "DELETE" });
     fetchAll();
   }
+
+  function handleDuplicate(repair) {
+    // Pre-fill the form from an existing repair so the user can save a
+    // near-copy with one or two edits (e.g. new date).
+    setRepairForm({
+      location_id: String(repair.location_id ?? ""),
+      pump_number: repair.pump_number ? String(repair.pump_number) : "",
+      repair_date: new Date().toISOString().split("T")[0], // today, not the original date
+      description: repair.description || "",
+      notes: repair.notes || "",
+    });
+    setRepairItems((repair.items || []).map((i) => ({
+      item_id: i.item_id,
+      source_location_id: i.source_location_id,
+      quantity: Number(i.quantity),
+      unit_cost: Number(i.unit_cost),
+      item_name: i.item_name || "",
+      source_location_name: i.source_location_name || "",
+    })));
+    setShowForm(true);
+    setError("");
+    // Scroll to top so the form is visible on mobile.
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Memoized filtered list.
+  const filteredRepairs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return repairs.filter((r) => {
+      if (filterStatus !== "all") {
+        const st = r.status || "open";
+        if (st !== filterStatus) return false;
+      }
+      if (filterFromDate && r.repair_date < filterFromDate) return false;
+      if (filterToDate && r.repair_date > filterToDate) return false;
+      if (!q) return true;
+      const hay = [
+        r.description, r.notes, r.location_name, r.created_by_name,
+        r.pump_number ? `pump ${r.pump_number}` : "",
+        ...(r.items || []).map((i) => `${i.item_name} ${i.part_number || ""}`),
+      ].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [repairs, searchQuery, filterFromDate, filterToDate, filterStatus]);
+
+  function clearFilters() {
+    setSearchQuery(""); setFilterFromDate(""); setFilterToDate(""); setFilterStatus("all");
+  }
+  const filtersActive = searchQuery || filterFromDate || filterToDate || filterStatus !== "all";
 
   async function handleCloseAndEmail(repair) {
     if (!confirm(`Close repair #${repair.id} and email a report to the configured address? This cannot be undone.`)) return;
@@ -284,9 +337,57 @@ export default function RepairsPage() {
         </form>
       )}
 
+      {/* Filter bar */}
+      {!showForm && repairs.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-2 items-end">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by part, location, pump, person…"
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              type="date"
+              value={filterFromDate}
+              onChange={(e) => setFilterFromDate(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              title="From date"
+            />
+            <input
+              type="date"
+              value={filterToDate}
+              onChange={(e) => setFilterToDate(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              title="To date"
+            />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="all">All</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+          {filtersActive && (
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-slate-500">
+                Showing {filteredRepairs.length} of {repairs.length}
+              </p>
+              <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Repairs list */}
       <div className="space-y-3">
-        {repairs.map((repair) => (
+        {filteredRepairs.map((repair) => (
           <div key={repair.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-start justify-between mb-2">
               <div>
@@ -323,8 +424,16 @@ export default function RepairsPage() {
                 ))}
               </div>
             )}
-            {repair.status !== "closed" && (
-              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                onClick={() => handleDuplicate(repair)}
+                disabled={!currentPerson}
+                title={!currentPerson ? "Pick who you are first" : "Pre-fill a new repair with the same parts"}
+                className="text-sm font-medium bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Duplicate
+              </button>
+              {repair.status !== "closed" && (
                 <button
                   onClick={() => handleCloseAndEmail(repair)}
                   disabled={closingId === repair.id}
@@ -332,8 +441,8 @@ export default function RepairsPage() {
                 >
                   {closingId === repair.id ? "Sending…" : "Close & Email Report"}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
             {repair.status === "closed" && repair.closed_at && (
               <div className="mt-2 text-xs text-slate-400">
                 Closed {new Date(repair.closed_at + "Z").toLocaleString()}
@@ -347,6 +456,12 @@ export default function RepairsPage() {
         <div className="text-center py-12 text-slate-400">
           <p className="text-lg">No repairs logged yet</p>
           <p className="text-sm mt-1">Tap &quot;+ Log Repair&quot; to record your first repair</p>
+        </div>
+      )}
+      {repairs.length > 0 && filteredRepairs.length === 0 && !showForm && (
+        <div className="text-center py-8 text-slate-400">
+          <p className="text-sm">No repairs match your filters.</p>
+          <button onClick={clearFilters} className="text-sm text-blue-600 hover:underline mt-1">Clear filters</button>
         </div>
       )}
     </div>

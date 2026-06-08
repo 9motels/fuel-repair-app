@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePerson } from "@/lib/personContext";
 
 export default function PurchasesPage() {
@@ -12,6 +12,27 @@ export default function PurchasesPage() {
   const [form, setForm] = useState({
     item_id: "", location_id: "", quantity: 1, unit_price: "", vendor: "", purchase_date: new Date().toISOString().split("T")[0], notes: "",
   });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+
+  const filteredPurchases = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return purchases.filter((p) => {
+      if (filterFromDate && p.purchase_date < filterFromDate) return false;
+      if (filterToDate && p.purchase_date > filterToDate) return false;
+      if (!q) return true;
+      const hay = [
+        p.item_name, p.part_number, p.location_name, p.vendor, p.notes, p.created_by_name,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [purchases, searchQuery, filterFromDate, filterToDate]);
+
+  const filtersActive = searchQuery || filterFromDate || filterToDate;
+  function clearFilters() {
+    setSearchQuery(""); setFilterFromDate(""); setFilterToDate("");
+  }
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -149,6 +170,30 @@ export default function PurchasesPage() {
         </form>
       )}
 
+      {/* Filter bar */}
+      {!showForm && purchases.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-2 items-end">
+            <input
+              type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by item, vendor, location, person…"
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            <input
+              type="date" value={filterFromDate} onChange={(e) => setFilterFromDate(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" title="From date" />
+            <input
+              type="date" value={filterToDate} onChange={(e) => setFilterToDate(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" title="To date" />
+          </div>
+          {filtersActive && (
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-slate-500">Showing {filteredPurchases.length} of {purchases.length}</p>
+              <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">Clear filters</button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -165,7 +210,7 @@ export default function PurchasesPage() {
             </tr>
           </thead>
           <tbody>
-            {purchases.map((p) => (
+            {filteredPurchases.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3 text-slate-600">{p.purchase_date}</td>
                 <td className="px-4 py-3">
@@ -187,6 +232,12 @@ export default function PurchasesPage() {
         </table>
         {purchases.length === 0 && (
           <div className="text-center py-8 text-slate-400">No purchases recorded yet.</div>
+        )}
+        {purchases.length > 0 && filteredPurchases.length === 0 && (
+          <div className="text-center py-6 text-slate-400 text-sm">
+            No purchases match your filters.
+            <button onClick={clearFilters} className="text-blue-600 hover:underline ml-1">Clear filters</button>
+          </div>
         )}
       </div>
     </div>

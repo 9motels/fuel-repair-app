@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePerson } from "@/lib/personContext";
 
 export default function TransfersPage() {
@@ -14,6 +14,29 @@ export default function TransfersPage() {
   const [form, setForm] = useState({
     item_id: "", from_location_id: "", to_location_id: "", quantity: 1, notes: "",
   });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+
+  const filteredTransfers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return transfers.filter((t) => {
+      const dateStr = (t.created_at || "").slice(0, 10);
+      if (filterFromDate && dateStr < filterFromDate) return false;
+      if (filterToDate && dateStr > filterToDate) return false;
+      if (!q) return true;
+      const hay = [
+        t.item_name, t.part_number, t.from_location_name, t.to_location_name,
+        t.notes, t.created_by_name,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [transfers, searchQuery, filterFromDate, filterToDate]);
+
+  const filtersActive = searchQuery || filterFromDate || filterToDate;
+  function clearFilters() {
+    setSearchQuery(""); setFilterFromDate(""); setFilterToDate("");
+  }
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -136,6 +159,30 @@ export default function TransfersPage() {
         </form>
       )}
 
+      {/* Filter bar */}
+      {!showForm && transfers.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-2 items-end">
+            <input
+              type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by item, location, person…"
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            <input
+              type="date" value={filterFromDate} onChange={(e) => setFilterFromDate(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" title="From date" />
+            <input
+              type="date" value={filterToDate} onChange={(e) => setFilterToDate(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" title="To date" />
+          </div>
+          {filtersActive && (
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-slate-500">Showing {filteredTransfers.length} of {transfers.length}</p>
+              <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">Clear filters</button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm min-w-[550px]">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -150,7 +197,7 @@ export default function TransfersPage() {
             </tr>
           </thead>
           <tbody>
-            {transfers.map((t) => (
+            {filteredTransfers.map((t) => (
               <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3 text-slate-600">{new Date(t.created_at).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
@@ -168,6 +215,12 @@ export default function TransfersPage() {
         </table>
         {transfers.length === 0 && (
           <div className="text-center py-8 text-slate-400">No transfers recorded yet.</div>
+        )}
+        {transfers.length > 0 && filteredTransfers.length === 0 && (
+          <div className="text-center py-6 text-slate-400 text-sm">
+            No transfers match your filters.
+            <button onClick={clearFilters} className="text-blue-600 hover:underline ml-1">Clear filters</button>
+          </div>
         )}
       </div>
     </div>
