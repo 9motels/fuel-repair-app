@@ -53,9 +53,17 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">Fuel Repair Inventory Overview</p>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-1">Fuel Repair Inventory Overview</p>
+        </div>
+        <Link
+          href="/repairs?new=1"
+          className="shrink-0 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+        >
+          + Log Repair
+        </Link>
       </div>
 
       {/* Summary cards */}

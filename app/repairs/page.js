@@ -22,6 +22,13 @@ export default function RepairsPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Open the form automatically when arriving from the dashboard "Log Repair" button (/repairs?new=1)
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new")) {
+      setShowForm(true);
+    }
+  }, []);
+
   async function fetchAll() {
     const [rRes, iRes, lRes, invRes] = await Promise.all([
       fetch("/api/repairs"), fetch("/api/items"), fetch("/api/locations"), fetch("/api/inventory"),
