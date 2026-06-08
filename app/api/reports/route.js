@@ -1,3 +1,6 @@
+// DEPRECATED: use /api/reports/summary for the new date-range dashboard.
+// This endpoint is preserved for one release in case anything external
+// depends on the per-month / per-location shape.
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 

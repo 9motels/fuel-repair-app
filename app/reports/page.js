@@ -1,268 +1,277 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+
+const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+function daysAgoStr(days) {
+  return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+}
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState([]);
+  const [fromDate, setFromDate] = useState(daysAgoStr(30));
+  const [toDate, setToDate] = useState(todayStr());
   const [locations, setLocations] = useState([]);
-  const [month, setMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [selectedLocationIds, setSelectedLocationIds] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [emailStatus, setEmailStatus] = useState({});
+  const [emailStatus, setEmailStatus] = useState(null); // null | 'sending' | 'sent' | 'failed'
+  const [emailError, setEmailError] = useState("");
 
+  // Load locations once.
   useEffect(() => {
-    fetch("/api/locations").then(r => r.json()).then(setLocations);
+    fetch("/api/locations").then((r) => r.json()).then(setLocations).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    fetchReports();
-  }, [month]);
-
-  async function fetchReports() {
+  const fetchSummary = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/reports?month=${month}`);
-    setReports(await res.json());
-    setLoading(false);
-  }
-
-  function formatMonth(m) {
-    const [year, mon] = m.split("-");
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return `${months[parseInt(mon) - 1]} ${year}`;
-  }
-
-  function generateReportText(report) {
-    let text = `Fuel Repair Inventory - Monthly Report\n`;
-    text += `Location: ${report.location.name}\n`;
-    text += `Period: ${formatMonth(report.month)}\n\n`;
-    text += `Repairs: ${report.repair_count}\n`;
-    text += `Total Parts Cost: $${report.total_cost.toFixed(2)}\n`;
-    text += `${"─".repeat(40)}\n\n`;
-
-    if (report.repairs.length > 0) {
-      text += `REPAIR DETAILS\n\n`;
-      report.repairs.forEach(r => {
-        text += `${r.repair_date} — ${r.description || "Repair"}\n`;
-        r.items.forEach(i => {
-          text += `  • ${i.item_name} x${i.quantity} — $${(i.quantity * i.unit_cost).toFixed(2)}\n`;
-          if (i.source_location_name !== report.location.name) {
-            text += `    (parts from ${i.source_location_name})\n`;
-          }
-        });
-        text += `  Repair Total: $${r.total_cost.toFixed(2)}\n\n`;
-      });
-
-      text += `${"─".repeat(40)}\n`;
-      text += `SUMMARY BY ITEM\n\n`;
-      report.item_summary.forEach(i => {
-        text += `  ${i.item_name.padEnd(35)} x${String(i.total_qty).padEnd(4)} $${i.total_cost.toFixed(2)}\n`;
-      });
-      text += `${"─".repeat(40)}\n`;
-      text += `  ${"TOTAL".padEnd(40)} $${report.total_cost.toFixed(2)}\n`;
-    } else {
-      text += `No repairs recorded this month.\n`;
-    }
-
-    return text;
-  }
-
-  function generateReportHTML(report) {
-    let html = `<div style="font-family: Arial, sans-serif; max-width: 600px;">`;
-    html += `<h2 style="color: #1e293b;">Fuel Repair Inventory - Monthly Report</h2>`;
-    html += `<p><strong>Location:</strong> ${report.location.name}<br>`;
-    html += `<strong>Period:</strong> ${formatMonth(report.month)}</p>`;
-    html += `<table style="width:100%; border-collapse:collapse; margin: 16px 0;">`;
-    html += `<tr><td style="padding:8px; background:#f1f5f9;"><strong>Repairs</strong></td><td style="padding:8px; background:#f1f5f9; text-align:right;">${report.repair_count}</td></tr>`;
-    html += `<tr><td style="padding:8px;"><strong>Total Parts Cost</strong></td><td style="padding:8px; text-align:right; color:#16a34a; font-weight:bold;">$${report.total_cost.toFixed(2)}</td></tr>`;
-    html += `</table>`;
-
-    if (report.repairs.length > 0) {
-      html += `<h3 style="color:#1e293b; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Repair Details</h3>`;
-      report.repairs.forEach(r => {
-        html += `<div style="margin-bottom:16px;">`;
-        html += `<p style="margin:0; font-weight:bold;">${r.repair_date} — ${r.description || "Repair"}</p>`;
-        html += `<table style="width:100%; margin-top:4px;">`;
-        r.items.forEach(i => {
-          html += `<tr><td style="padding:2px 8px; font-size:14px;">&bull; ${i.item_name} x${i.quantity}</td>`;
-          html += `<td style="padding:2px 8px; font-size:14px; text-align:right;">$${(i.quantity * i.unit_cost).toFixed(2)}</td></tr>`;
-        });
-        html += `<tr><td style="padding:4px 8px; font-size:14px; font-weight:bold; border-top:1px solid #e2e8f0;">Repair Total</td>`;
-        html += `<td style="padding:4px 8px; font-size:14px; font-weight:bold; text-align:right; border-top:1px solid #e2e8f0;">$${r.total_cost.toFixed(2)}</td></tr>`;
-        html += `</table></div>`;
-      });
-
-      html += `<h3 style="color:#1e293b; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Summary by Item</h3>`;
-      html += `<table style="width:100%; border-collapse:collapse;">`;
-      html += `<tr style="background:#f1f5f9;"><th style="padding:8px; text-align:left;">Item</th><th style="padding:8px; text-align:center;">Qty</th><th style="padding:8px; text-align:right;">Cost</th></tr>`;
-      report.item_summary.forEach(i => {
-        html += `<tr><td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">${i.item_name}</td>`;
-        html += `<td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">${i.total_qty}</td>`;
-        html += `<td style="padding:6px 8px; text-align:right; border-bottom:1px solid #f1f5f9;">$${i.total_cost.toFixed(2)}</td></tr>`;
-      });
-      html += `<tr style="font-weight:bold; background:#f1f5f9;"><td style="padding:8px;">TOTAL</td><td></td>`;
-      html += `<td style="padding:8px; text-align:right; color:#16a34a;">$${report.total_cost.toFixed(2)}</td></tr>`;
-      html += `</table>`;
-    } else {
-      html += `<p style="color:#94a3b8;">No repairs recorded this month.</p>`;
-    }
-
-    html += `</div>`;
-    return html;
-  }
-
-  async function emailReport(report) {
-    setEmailStatus(prev => ({ ...prev, [report.location.id]: "sending" }));
     try {
-      const res = await fetch("/api/email-report", {
+      const qs = new URLSearchParams({ from: fromDate, to: toDate });
+      if (selectedLocationIds.length) qs.set("location_id", selectedLocationIds.join(","));
+      const res = await fetch(`/api/reports/summary?${qs.toString()}`);
+      setData(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }, [fromDate, toDate, selectedLocationIds]);
+
+  // Debounced fetch when filters change.
+  useEffect(() => {
+    const t = setTimeout(fetchSummary, 250);
+    return () => clearTimeout(t);
+  }, [fetchSummary]);
+
+  function toggleLocation(id) {
+    setSelectedLocationIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  async function emailReport() {
+    setEmailStatus("sending"); setEmailError("");
+    try {
+      const res = await fetch("/api/reports/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: `Fuel Repair Report - ${report.location.name} - ${formatMonth(report.month)}`,
-          html: generateReportHTML(report),
-          text: generateReportText(report),
-        }),
+        body: JSON.stringify({ from: fromDate, to: toDate, location_ids: selectedLocationIds }),
       });
-      if (res.ok) {
-        setEmailStatus(prev => ({ ...prev, [report.location.id]: "sent" }));
+      const json = await res.json();
+      if (!res.ok) {
+        setEmailStatus("failed");
+        setEmailError(json.error || "Unknown error");
       } else {
-        setEmailStatus(prev => ({ ...prev, [report.location.id]: "error" }));
+        setEmailStatus("sent");
       }
-    } catch {
-      setEmailStatus(prev => ({ ...prev, [report.location.id]: "error" }));
-    }
-    setTimeout(() => setEmailStatus(prev => ({ ...prev, [report.location.id]: null })), 3000);
-  }
-
-  async function emailAll() {
-    for (const report of reports.filter(r => r.repair_count > 0)) {
-      await emailReport(report);
+    } catch (e) {
+      setEmailStatus("failed");
+      setEmailError(e.message || "Send failed");
     }
   }
 
-  const totalAllLocations = reports.reduce((sum, r) => sum + r.total_cost, 0);
-  const totalRepairs = reports.reduce((sum, r) => sum + r.repair_count, 0);
+  function setPreset(days) {
+    setFromDate(daysAgoStr(days));
+    setToDate(todayStr());
+  }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-          <p className="text-sm text-slate-500 mt-1">Monthly repair reports by location</p>
-        </div>
-        {totalRepairs > 0 && (
-          <button onClick={emailAll}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-            Email All
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">Reports</h1>
+      <p className="text-sm text-slate-500 mb-4">Repair spend, top parts, and trends across your locations.</p>
+
+      {/* Filter bar */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-5 sticky top-0 z-10">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">From</label>
+            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">To</label>
+            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <button
+            onClick={emailReport}
+            disabled={emailStatus === "sending"}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+          >
+            {emailStatus === "sending" ? "Sending…" : emailStatus === "sent" ? "Sent ✓" : "Email Report"}
           </button>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          <span className="text-xs text-slate-500 mr-1 mt-1">Quick:</span>
+          <PresetButton onClick={() => setPreset(7)}>7d</PresetButton>
+          <PresetButton onClick={() => setPreset(30)}>30d</PresetButton>
+          <PresetButton onClick={() => setPreset(90)}>90d</PresetButton>
+          <PresetButton onClick={() => setPreset(365)}>1y</PresetButton>
+        </div>
+
+        {locations.length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs text-slate-500 mb-1.5">Locations (none = all):</p>
+            <div className="flex flex-wrap gap-1.5">
+              {locations.map((l) => {
+                const on = selectedLocationIds.includes(l.id);
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => toggleLocation(l.id)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                      on ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    {l.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {emailStatus === "failed" && (
+          <div className="text-xs text-red-600 mt-2 bg-red-50 border border-red-200 rounded p-2">
+            Email failed: {emailError}
+          </div>
         )}
       </div>
 
-      {/* Month selector */}
-      <div className="flex items-center gap-3 mb-6">
-        <label className="text-sm font-medium text-slate-700">Month:</label>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
+      {loading && !data && <p className="text-sm text-slate-400">Loading…</p>}
 
-      {/* Overall summary */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-4">
-          <p className="text-xs md:text-sm text-slate-500">Total Repairs</p>
-          <p className="text-xl md:text-2xl font-bold text-slate-900">{totalRepairs}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-4">
-          <p className="text-xs md:text-sm text-slate-500">Total Cost</p>
-          <p className="text-xl md:text-2xl font-bold text-green-700">${totalAllLocations.toFixed(2)}</p>
-        </div>
-      </div>
+      {data && (
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            <SummaryCard label="Total Spend" value={fmt(data.totals.spend)} highlight />
+            <SummaryCard label="Parts Cost" value={fmt(data.totals.parts_cost)} />
+            <SummaryCard label="Closed" value={data.totals.repairs_closed} />
+            <SummaryCard label="Open" value={data.totals.repairs_open} />
+          </div>
 
-      {loading ? (
-        <div className="text-center py-8 text-slate-400">Loading reports...</div>
-      ) : (
-        <div className="space-y-4">
-          {reports.map((report) => (
-            <div key={report.location.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              {/* Location header */}
-              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+          <Section title="Spend by Location">
+            <Table
+              headers={["Location", "Repairs", "Total"]}
+              align={["left", "center", "right"]}
+              empty="No repairs in this range"
+              rows={data.by_location.map((r) => [
+                r.location_name,
+                r.repair_count,
+                <span className="font-semibold">{fmt(r.total_cost)}</span>,
+              ])}
+            />
+          </Section>
+
+          <Section title="Top 10 Parts by Cost">
+            <Table
+              headers={["Part", "Qty", "Total"]}
+              align={["left", "center", "right"]}
+              empty="No parts used in this range"
+              rows={data.top_parts.map((p) => [
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-slate-900">{report.location.name}</h3>
-                    {report.location.is_central ? (
-                      <span className="bg-amber-100 text-amber-800 text-xs px-1.5 py-0.5 rounded font-medium">Central</span>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {report.repair_count} repair{report.repair_count !== 1 ? "s" : ""} &middot; ${report.total_cost.toFixed(2)}
-                  </p>
-                </div>
-                {report.repair_count > 0 && (
-                  <button onClick={() => emailReport(report)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      emailStatus[report.location.id] === "sent"
-                        ? "bg-green-100 text-green-700"
-                        : emailStatus[report.location.id] === "sending"
-                        ? "bg-slate-100 text-slate-500"
-                        : emailStatus[report.location.id] === "error"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    }`}>
-                    {emailStatus[report.location.id] === "sent" ? "Drafted!" :
-                     emailStatus[report.location.id] === "sending" ? "Sending..." :
-                     emailStatus[report.location.id] === "error" ? "Failed" :
-                     "Email Report"}
-                  </button>
-                )}
-              </div>
+                  <div className="font-medium">{p.item_name}</div>
+                  {p.part_number && <div className="font-mono text-xs text-slate-400">{p.part_number}</div>}
+                </div>,
+                p.total_qty,
+                <span className="font-semibold">{fmt(p.total_cost)}</span>,
+              ])}
+            />
+          </Section>
 
-              {/* Report content */}
-              {report.repair_count > 0 ? (
-                <div className="p-4">
-                  {/* Repair details */}
-                  <div className="space-y-3 mb-4">
-                    {report.repairs.map((r) => (
-                      <div key={r.id} className="border-l-2 border-slate-200 pl-3">
-                        <p className="text-sm font-medium text-slate-900">{r.repair_date} — {r.description || "Repair"}</p>
-                        <div className="mt-1 space-y-0.5">
-                          {r.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-xs text-slate-600">
-                              <span>{item.item_name} x{item.quantity}</span>
-                              <span>${(item.quantity * item.unit_cost).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-xs font-semibold text-slate-700 mt-1">Repair: ${r.total_cost.toFixed(2)}</p>
-                      </div>
-                    ))}
-                  </div>
+          {data.by_pump.length > 0 && (
+            <Section title="Cost per Pump" subtitle="Tap a row to see that pump's full repair history">
+              <Table
+                headers={["Location", "Pump", "Repairs", "Total"]}
+                align={["left", "center", "center", "right"]}
+                empty="No pump repairs in this range"
+                rows={data.by_pump.map((r) => [
+                  <Link href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
+                    {r.location_name}
+                  </Link>,
+                  <Link href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
+                    Pump {r.pump_number}
+                  </Link>,
+                  r.repair_count,
+                  <span className="font-semibold">{fmt(r.total_cost)}</span>,
+                ])}
+              />
+            </Section>
+          )}
 
-                  {/* Item summary */}
-                  {report.item_summary.length > 0 && (
-                    <div className="border-t border-slate-200 pt-3">
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Summary by Item</p>
-                      <div className="space-y-1">
-                        {report.item_summary.map((item, idx) => (
-                          <div key={idx} className="flex justify-between text-sm">
-                            <span className="text-slate-700">{item.item_name} <span className="text-slate-400">x{item.total_qty}</span></span>
-                            <span className="font-medium text-slate-900">${item.total_cost.toFixed(2)}</span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2 mt-2">
-                          <span className="text-slate-900">Total</span>
-                          <span className="text-green-700">${report.total_cost.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-sm text-slate-400">No repairs this month</div>
-              )}
-            </div>
-          ))}
-        </div>
+          <Section title="Monthly Trend">
+            <Table
+              headers={["Month", "Repairs", "Total"]}
+              align={["left", "center", "right"]}
+              empty="No data"
+              rows={data.by_month.map((r) => [
+                r.month,
+                r.repair_count,
+                <span className="font-semibold">{fmt(r.total_cost)}</span>,
+              ])}
+            />
+          </Section>
+        </>
       )}
+    </div>
+  );
+}
+
+function PresetButton({ children, onClick }) {
+  return (
+    <button onClick={onClick} className="text-xs px-2.5 py-1 rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
+      {children}
+    </button>
+  );
+}
+
+function SummaryCard({ label, value, highlight }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-4">
+      <p className="text-xs md:text-sm text-slate-500">{label}</p>
+      <p className={`text-xl md:text-2xl font-bold mt-1 ${highlight ? "text-green-700" : "text-slate-900"}`}>{value}</p>
+    </div>
+  );
+}
+
+function Section({ title, subtitle, children }) {
+  return (
+    <div className="mb-6">
+      <h2 className="text-lg font-semibold mb-1">{title}</h2>
+      {subtitle && <p className="text-xs text-slate-500 mb-2">{subtitle}</p>}
+      {children}
+    </div>
+  );
+}
+
+function Table({ headers, align, rows, empty }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+      <table className="w-full text-sm min-w-[360px]">
+        <thead className="bg-slate-50 border-b border-slate-200">
+          <tr>
+            {headers.map((h, i) => (
+              <th key={i} className={`px-4 py-3 font-medium text-slate-600 text-${align?.[i] || "left"}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={headers.length} className="px-4 py-6 text-center text-slate-400">{empty}</td>
+            </tr>
+          ) : rows.map((cells, i) => (
+            <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+              {cells.map((c, j) => (
+                <td key={j} className={`px-4 py-3 text-slate-700 text-${align?.[j] || "left"}`}>{c}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
