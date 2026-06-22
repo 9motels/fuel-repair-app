@@ -3,7 +3,7 @@ import {
   getClient,
   MODEL,
   buildTroubleshootSystem,
-  normalizeMessages,
+  toAnthropicMessages,
   friendlyError,
 } from '@/lib/equipmentAi';
 
@@ -26,7 +26,8 @@ export async function POST(request) {
     return json({ error: 'AI isn’t set up yet — ANTHROPIC_API_KEY is missing.' }, 500);
   }
   const body = await request.json();
-  const messages = normalizeMessages(body.messages);
+  const rawMessages = Array.isArray(body.messages) ? body.messages : [];
+  const messages = toAnthropicMessages(rawMessages);
   if (messages.length === 0) {
     return json({ error: 'At least one user message is required.' }, 400);
   }
@@ -72,12 +73,14 @@ export async function POST(request) {
 
   // Persist the incoming user message (and set the conversation title on first use).
   const convId = body.conversationId;
-  const lastUser = messages[messages.length - 1];
-  if (convId && lastUser?.role === 'user') {
+  const lastUser = rawMessages[rawMessages.length - 1];
+  if (convId && lastUser && lastUser.role === 'user') {
+    const lastImages = Array.isArray(lastUser.images) ? lastUser.images.filter(Boolean) : [];
+    const lastText = typeof lastUser.content === 'string' ? lastUser.content : '';
     try {
       await db.execute({
-        sql: 'INSERT INTO troubleshoot_messages (conversation_id, role, content) VALUES (?, ?, ?)',
-        args: [convId, 'user', lastUser.content],
+        sql: 'INSERT INTO troubleshoot_messages (conversation_id, role, content, images) VALUES (?, ?, ?, ?)',
+        args: [convId, 'user', lastText, JSON.stringify(lastImages)],
       });
       const conv = (
         await db.execute({ sql: 'SELECT title FROM troubleshoot_conversations WHERE id = ?', args: [convId] })
@@ -85,7 +88,7 @@ export async function POST(request) {
       if (conv && !conv.title) {
         await db.execute({
           sql: 'UPDATE troubleshoot_conversations SET title = ? WHERE id = ?',
-          args: [lastUser.content.slice(0, 60), convId],
+          args: [(lastText || 'Photo diagnosis').slice(0, 60), convId],
         });
       }
       await db.execute({

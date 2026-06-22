@@ -9,12 +9,21 @@ export async function GET(request, { params }) {
     await db.execute({ sql: 'SELECT * FROM troubleshoot_conversations WHERE id = ?', args: [cid] })
   ).rows[0];
   if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-  const messages = (
+  const rows = (
     await db.execute({
-      sql: 'SELECT id, role, content, created_at FROM troubleshoot_messages WHERE conversation_id = ? ORDER BY id ASC',
+      sql: 'SELECT id, role, content, images, created_at FROM troubleshoot_messages WHERE conversation_id = ? ORDER BY id ASC',
       args: [cid],
     })
   ).rows;
+  const messages = rows.map((m) => {
+    let images = [];
+    try {
+      images = m.images ? JSON.parse(m.images) : [];
+    } catch {
+      images = [];
+    }
+    return { ...m, images };
+  });
   return NextResponse.json({ ...conv, messages });
 }
 
