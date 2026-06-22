@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, use } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import PhotoButtons from "@/lib/PhotoButtons";
@@ -36,13 +36,6 @@ export default function EquipmentDetailPage({ params }) {
   const [savingLog, setSavingLog] = useState(false);
   const [logError, setLogError] = useState("");
 
-  // troubleshoot chat
-  const [chat, setChat] = useState([]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [chatError, setChatError] = useState("");
-  const chatEndRef = useRef(null);
-
   async function load() {
     const res = await fetch(`/api/equipment/${id}`);
     const data = await res.json();
@@ -55,10 +48,6 @@ export default function EquipmentDetailPage({ params }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
 
   async function toggleStatus() {
     setUpdating(true);
@@ -100,70 +89,6 @@ export default function EquipmentDetailPage({ params }) {
       setLogError(err.message);
     } finally {
       setSavingLog(false);
-    }
-  }
-
-  async function sendChat(e) {
-    e.preventDefault();
-    const q = input.trim();
-    if (!q || sending) return;
-    const base = [...chat, { role: "user", content: q }];
-    setChat([...base, { role: "assistant", content: "" }]);
-    setInput("");
-    setSending(true);
-    setChatError("");
-
-    const equipment = {
-      name: eq.name,
-      category: eq.category,
-      make: eq.make,
-      model: eq.model,
-      serial: eq.serial,
-      location: eq.location_name,
-      description: eq.description,
-    };
-    const logs = (eq.logs || []).map((l) => ({
-      performed_at: l.performed_at,
-      work_type: l.work_type,
-      performed_by: l.performed_by_name,
-      notes: l.notes,
-    }));
-
-    try {
-      const res = await fetch("/api/equipment/troubleshoot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ equipment, logs, messages: base }),
-      });
-      if (!res.ok || !res.body) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Troubleshooting request failed.");
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        if (chunk) {
-          setChat((prev) => {
-            const copy = prev.slice();
-            const last = copy[copy.length - 1];
-            copy[copy.length - 1] = { ...last, content: last.content + chunk };
-            return copy;
-          });
-        }
-      }
-    } catch (err) {
-      setChatError(err.message);
-      setChat((prev) => {
-        const copy = prev.slice();
-        const last = copy[copy.length - 1];
-        if (last && last.role === "assistant" && !last.content) copy.pop();
-        return copy;
-      });
-    } finally {
-      setSending(false);
     }
   }
 
@@ -239,45 +164,22 @@ export default function EquipmentDetailPage({ params }) {
         )}
       </div>
 
-      {/* Troubleshoot */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-        <h2 className="text-lg font-semibold text-slate-900">Troubleshoot</h2>
-        <p className="text-xs text-slate-500 mt-0.5 mb-3">
-          Ask about this machine — it already knows the model and service history.
-        </p>
-        {chat.length > 0 && (
-          <div className="space-y-2 max-h-96 overflow-y-auto mb-3">
-            {chat.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                    m.role === "user" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-800"
-                  }`}
-                >
-                  {m.content || (sending && i === chat.length - 1 ? "Thinking…" : "")}
-                </div>
-              </div>
-            ))}
-            <div ref={chatEndRef} />
+      {/* Troubleshoot — opens the full-screen chat with saved history */}
+      <Link
+        href={`/equipment/${id}/troubleshoot`}
+        className="block bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-blue-300 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Troubleshoot with AI →</h2>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Full-screen chat that knows this machine and its history. Conversations are saved so you
+              can look back at past diagnoses.
+            </p>
           </div>
-        )}
-        {chatError && <div className="text-sm text-red-600 mb-2">{chatError}</div>}
-        <form onSubmit={sendChat} className="flex gap-2">
-          <input
-            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g. It's not cooling — where do I start?"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-          />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="bg-blue-600 text-white px-4 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
-          >
-            {sending ? "…" : "Ask"}
-          </button>
-        </form>
-      </div>
+          <span className="text-2xl shrink-0">💬</span>
+        </div>
+      </Link>
 
       {/* Maintenance log */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
