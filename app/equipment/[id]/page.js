@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, use } from "react";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
+import PhotoButtons from "@/lib/PhotoButtons";
 
 const WORK_TYPES = ["Repair", "Routine", "Inspection", "Replacement", "Other"];
 
@@ -316,14 +317,12 @@ export default function EquipmentDetailPage({ params }) {
             onChange={(e) => setLog({ ...log, notes: e.target.value })}
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            capture="environment"
-            className="block w-full text-sm"
-            onChange={(e) => setLogFiles(Array.from(e.target.files || []))}
-          />
+          <PhotoButtons onFiles={(f) => setLogFiles((prev) => [...prev, ...f])} />
+          {logFiles.length > 0 && (
+            <p className="text-xs text-slate-500">
+              {logFiles.length} photo{logFiles.length === 1 ? "" : "s"} attached
+            </p>
+          )}
           {logError && <div className="text-sm text-red-600">{logError}</div>}
           <button
             type="submit"

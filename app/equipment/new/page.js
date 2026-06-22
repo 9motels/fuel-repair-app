@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
+import PhotoButtons from "@/lib/PhotoButtons";
 
 const CATEGORIES = [
   "Refrigeration",
@@ -163,14 +164,7 @@ export default function NewEquipmentPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
           <label className={label}>Photos (nameplate / the unit)</label>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            capture="environment"
-            className="block w-full text-sm"
-            onChange={(e) => setFiles(Array.from(e.target.files || []))}
-          />
+          <PhotoButtons onFiles={(f) => setFiles((prev) => [...prev, ...f])} />
           {photoCount > 0 && (
             <p className="text-xs text-slate-500">
               {photoCount} photo{photoCount === 1 ? "" : "s"} attached
