@@ -36,7 +36,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <head>
-        <title>Fuel Repair Inventory</title>
+        <title>23 Fuels Maintenance App</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className="h-full flex flex-col md:flex-row">
@@ -44,7 +44,7 @@ export default function RootLayout({ children }) {
         {/* Mobile header */}
         <header className="md:hidden bg-slate-800 text-white flex items-center justify-between px-4 py-3 shrink-0">
           <div>
-            <h1 className="text-base font-bold">Fuel Repair</h1>
+            <h1 className="text-base font-bold">23 Fuels Maintenance App</h1>
           </div>
           <div className="flex items-center gap-2">
             <PersonPicker variant="header" />
@@ -92,7 +92,7 @@ export default function RootLayout({ children }) {
         {/* Desktop sidebar */}
         <aside className="hidden md:flex w-64 bg-slate-800 text-slate-200 flex-col min-h-screen shrink-0">
           <div className="p-5 border-b border-slate-700">
-            <h1 className="text-lg font-bold text-white">Fuel Repair</h1>
+            <h1 className="text-lg font-bold text-white">23 Fuels Maintenance App</h1>
             <p className="text-xs text-slate-400 mt-1">Inventory Tracker</p>
           </div>
           <nav className="flex-1 p-3 space-y-1">
