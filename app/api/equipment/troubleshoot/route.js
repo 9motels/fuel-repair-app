@@ -37,6 +37,7 @@ export async function POST(request) {
   // Ground from the DB so the prompt always reflects current details + history.
   let equipment = body.equipment;
   let logs = body.logs;
+  let repairs = body.repairs;
   if (body.equipmentId) {
     const eq = (
       await db.execute({
@@ -68,6 +69,25 @@ export async function POST(request) {
         performed_by: l.performed_by_name,
         notes: l.notes,
       }));
+      const repairRows = (
+        await db.execute({
+          sql: `SELECT r.* FROM repairs r
+                WHERE r.equipment_id = ? ORDER BY r.repair_date DESC, r.created_at DESC`,
+          args: [body.equipmentId],
+        })
+      ).rows;
+      repairs = [];
+      for (const r of repairRows) {
+        const items = (
+          await db.execute({
+            sql: `SELECT ri.quantity, it.name as item_name
+                  FROM repair_items ri JOIN items it ON ri.item_id = it.id
+                  WHERE ri.repair_id = ?`,
+            args: [r.id],
+          })
+        ).rows.map((i) => ({ item_name: i.item_name, quantity: i.quantity }));
+        repairs.push({ repair_date: r.repair_date, description: r.description, items });
+      }
     }
   }
 
@@ -110,7 +130,7 @@ export async function POST(request) {
           model: MODEL,
           max_tokens: 4096,
           thinking: { type: 'adaptive' },
-          system: buildTroubleshootSystem(equipment, logs),
+          system: buildTroubleshootSystem(equipment, logs, repairs),
           messages,
         });
         s.on('text', (delta) => {

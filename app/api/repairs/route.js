@@ -5,14 +5,17 @@ export async function GET(request) {
   const db = await getDb();
   const { searchParams } = new URL(request.url);
   const locationId = searchParams.get('location_id');
+  const equipmentId = searchParams.get('equipment_id');
 
-  let sql = `SELECT r.*, l.name as location_name, p.name as created_by_name
+  let sql = `SELECT r.*, l.name as location_name, p.name as created_by_name, eq.name as equipment_name
              FROM repairs r
              JOIN locations l ON r.location_id = l.id
              LEFT JOIN people p ON r.created_by_id = p.id
+             LEFT JOIN equipment eq ON r.equipment_id = eq.id
              WHERE 1=1`;
   const args = [];
   if (locationId) { sql += ' AND r.location_id = ?'; args.push(locationId); }
+  if (equipmentId) { sql += ' AND r.equipment_id = ?'; args.push(equipmentId); }
   sql += ' ORDER BY r.repair_date DESC, r.created_at DESC';
 
   const repairs = (await db.execute({ sql, args })).rows;
@@ -34,7 +37,7 @@ export async function GET(request) {
 export async function POST(request) {
   const db = await getDb();
   const body = await request.json();
-  const { location_id, pump_number, repair_date, description, notes, items, created_by_id } = body;
+  const { location_id, pump_number, repair_date, description, notes, items, created_by_id, equipment_id } = body;
   if (!location_id || !repair_date || !items || items.length === 0) {
     return NextResponse.json({ error: 'location_id, repair_date, and at least one item are required' }, { status: 400 });
   }
@@ -49,7 +52,7 @@ export async function POST(request) {
       }
     }
 
-    const result = await tx.execute({ sql: 'INSERT INTO repairs (location_id, pump_number, repair_date, description, notes, created_by_id) VALUES (?, ?, ?, ?, ?, ?)', args: [location_id, pump_number || null, repair_date, description || '', notes || '', created_by_id || null] });
+    const result = await tx.execute({ sql: 'INSERT INTO repairs (location_id, pump_number, repair_date, description, notes, created_by_id, equipment_id) VALUES (?, ?, ?, ?, ?, ?, ?)', args: [location_id, pump_number || null, repair_date, description || '', notes || '', created_by_id || null, equipment_id || null] });
     const repairId = Number(result.lastInsertRowid);
 
     for (const item of items) {
