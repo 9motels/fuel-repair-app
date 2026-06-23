@@ -5,27 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import PhotoButtons from "@/lib/PhotoButtons";
-
-const CATEGORIES = [
-  "Refrigeration",
-  "Fuel dispenser",
-  "POS",
-  "Networking",
-  "HVAC",
-  "Signage",
-  "Other",
-];
-
-async function uploadFile(file) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch("/api/equipment/upload", { method: "POST", body: fd });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Photo upload failed.");
-  }
-  return (await res.json()).url;
-}
+import { CATEGORIES } from "@/lib/equipmentAi";
+import { uploadFile } from "@/lib/equipmentUtils";
 
 export default function NewEquipmentPage() {
   const router = useRouter();

@@ -15,6 +15,7 @@ export default function PurchasesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterFromDate, setFilterFromDate] = useState("");
   const [filterToDate, setFilterToDate] = useState("");
+  const [error, setError] = useState("");
 
   const filteredPurchases = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -34,17 +35,40 @@ export default function PurchasesPage() {
     setSearchQuery(""); setFilterFromDate(""); setFilterToDate("");
   }
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [pRes, iRes, lRes] = await Promise.all([
+          fetch("/api/purchases"),
+          fetch("/api/items"),
+          fetch("/api/locations"),
+        ]);
+        if (!pRes.ok || !iRes.ok || !lRes.ok) throw new Error("Failed to load data");
+        const [p, i, l] = await Promise.all([pRes.json(), iRes.json(), lRes.json()]);
+        if (!cancelled) { setPurchases(p); setItems(i); setLocations(l); }
+      } catch {
+        if (!cancelled) setError("Could not load purchases. Please refresh to try again.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function fetchAll() {
-    const [pRes, iRes, lRes] = await Promise.all([
-      fetch("/api/purchases"),
-      fetch("/api/items"),
-      fetch("/api/locations"),
-    ]);
-    setPurchases(await pRes.json());
-    setItems(await iRes.json());
-    setLocations(await lRes.json());
+    try {
+      const [pRes, iRes, lRes] = await Promise.all([
+        fetch("/api/purchases"),
+        fetch("/api/items"),
+        fetch("/api/locations"),
+      ]);
+      if (!pRes.ok || !iRes.ok || !lRes.ok) throw new Error("Failed to load data");
+      setPurchases(await pRes.json());
+      setItems(await iRes.json());
+      setLocations(await lRes.json());
+      setError("");
+    } catch {
+      setError("Could not load purchases. Please refresh to try again.");
+    }
   }
 
   async function handleSubmit(e) {
@@ -90,6 +114,10 @@ export default function PurchasesPage() {
           + Log Purchase
         </button>
       </div>
+
+      {error && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{error}</div>
+      )}
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3 mb-6">

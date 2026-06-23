@@ -19,6 +19,7 @@ export default function ReportsPage() {
   const [selectedLocationIds, setSelectedLocationIds] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [emailStatus, setEmailStatus] = useState(null); // null | 'sending' | 'sent' | 'failed'
   const [emailError, setEmailError] = useState("");
 
@@ -33,7 +34,11 @@ export default function ReportsPage() {
       const qs = new URLSearchParams({ from: fromDate, to: toDate });
       if (selectedLocationIds.length) qs.set("location_id", selectedLocationIds.join(","));
       const res = await fetch(`/api/reports/summary?${qs.toString()}`);
+      if (!res.ok) throw new Error("Failed to load report");
       setData(await res.json());
+      setLoadError("");
+    } catch {
+      setLoadError("Could not load the report. Adjust the filters or try again.");
     } finally {
       setLoading(false);
     }
@@ -141,6 +146,10 @@ export default function ReportsPage() {
         )}
       </div>
 
+      {loadError && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{loadError}</div>
+      )}
+
       {loading && !data && <p className="text-sm text-slate-400">Loading…</p>}
 
       {data && (
@@ -161,7 +170,7 @@ export default function ReportsPage() {
               rows={data.by_location.map((r) => [
                 r.location_name,
                 r.repair_count,
-                <span className="font-semibold">{fmt(r.total_cost)}</span>,
+                <span key="total" className="font-semibold">{fmt(r.total_cost)}</span>,
               ])}
             />
           </Section>
@@ -172,12 +181,12 @@ export default function ReportsPage() {
               align={["left", "center", "right"]}
               empty="No parts used in this range"
               rows={data.top_parts.map((p) => [
-                <div>
+                <div key="part">
                   <div className="font-medium">{p.item_name}</div>
                   {p.part_number && <div className="font-mono text-xs text-slate-400">{p.part_number}</div>}
                 </div>,
                 p.total_qty,
-                <span className="font-semibold">{fmt(p.total_cost)}</span>,
+                <span key="total" className="font-semibold">{fmt(p.total_cost)}</span>,
               ])}
             />
           </Section>
@@ -189,14 +198,14 @@ export default function ReportsPage() {
                 align={["left", "center", "center", "right"]}
                 empty="No pump repairs in this range"
                 rows={data.by_pump.map((r) => [
-                  <Link href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
+                  <Link key="loc" href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
                     {r.location_name}
                   </Link>,
-                  <Link href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
+                  <Link key="pump" href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
                     Pump {r.pump_number}
                   </Link>,
                   r.repair_count,
-                  <span className="font-semibold">{fmt(r.total_cost)}</span>,
+                  <span key="total" className="font-semibold">{fmt(r.total_cost)}</span>,
                 ])}
               />
             </Section>
@@ -210,7 +219,7 @@ export default function ReportsPage() {
               rows={data.by_month.map((r) => [
                 r.month,
                 r.repair_count,
-                <span className="font-semibold">{fmt(r.total_cost)}</span>,
+                <span key="total" className="font-semibold">{fmt(r.total_cost)}</span>,
               ])}
             />
           </Section>

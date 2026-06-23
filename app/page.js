@@ -4,18 +4,19 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes] = await Promise.all([
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes] = await Promise.all([
         fetch("/api/locations"),
         fetch("/api/alerts"),
         fetch("/api/purchases"),
         fetch("/api/transfers"),
         fetch("/api/repairs"),
         fetch("/api/inventory"),
+        fetch("/api/equipment"),
       ]);
       setData({
         locations: await locRes.json(),
@@ -24,6 +25,7 @@ export default function Dashboard() {
         transfers: await transRes.json(),
         repairs: await repRes.json(),
         inventory: await invRes.json(),
+        equipment: await eqRes.json(),
       });
       setLoading(false);
     }
@@ -75,7 +77,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
           <p className="text-xs md:text-sm text-slate-500">Locations</p>
           <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{data.locations.length}</p>
@@ -92,6 +94,10 @@ export default function Dashboard() {
           <p className="text-xs md:text-sm text-slate-500">Total Spent</p>
           <p className="text-2xl md:text-3xl font-bold text-green-700 mt-1">${totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
+        <Link href="/equipment" className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5 hover:border-blue-300 transition-colors">
+          <p className="text-xs md:text-sm text-slate-500">Equipment</p>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{data.equipment.length}</p>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

@@ -2,22 +2,12 @@
 
 import { useEffect, useState, useRef, use } from "react";
 import Link from "next/link";
+import { uploadFile } from "@/lib/equipmentUtils";
 
 function fmtDate(s) {
   if (!s) return "";
   // libSQL stores 'YYYY-MM-DD HH:MM:SS' (UTC); show the date portion.
   return s.slice(0, 10);
-}
-
-async function uploadFile(file) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch("/api/equipment/upload", { method: "POST", body: fd });
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    throw new Error(d.error || "Photo upload failed.");
-  }
-  return (await res.json()).url;
 }
 
 function mapMessages(list) {

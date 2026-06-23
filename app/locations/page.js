@@ -6,13 +6,33 @@ export default function LocationsPage() {
   const [locations, setLocations] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", address: "", is_central: false });
 
-  useEffect(() => { fetchLocations(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/locations");
+        if (!res.ok) throw new Error("Failed to load locations");
+        const json = await res.json();
+        if (!cancelled) setLocations(json);
+      } catch {
+        if (!cancelled) setError("Could not load locations. Please refresh to try again.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function fetchLocations() {
-    const res = await fetch("/api/locations");
-    setLocations(await res.json());
+    try {
+      const res = await fetch("/api/locations");
+      if (!res.ok) throw new Error("Failed to load locations");
+      setLocations(await res.json());
+      setError("");
+    } catch {
+      setError("Could not load locations. Please refresh to try again.");
+    }
   }
 
   async function handleSubmit(e) {
@@ -52,6 +72,10 @@ export default function LocationsPage() {
           + Add Location
         </button>
       </div>
+
+      {error && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{error}</div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
