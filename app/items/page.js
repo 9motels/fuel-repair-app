@@ -10,15 +10,35 @@ export default function ItemsPage() {
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: "", description: "", category: "", part_number: "", unit: "each", min_quantity: 0,
   });
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/items");
+        if (!res.ok) throw new Error("Failed to load items");
+        const json = await res.json();
+        if (!cancelled) setItems(json);
+      } catch {
+        if (!cancelled) setError("Could not load items. Please refresh to try again.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function fetchItems() {
-    const res = await fetch("/api/items");
-    setItems(await res.json());
+    try {
+      const res = await fetch("/api/items");
+      if (!res.ok) throw new Error("Failed to load items");
+      setItems(await res.json());
+      setError("");
+    } catch {
+      setError("Could not load items. Please refresh to try again.");
+    }
   }
 
   async function handleSubmit(e) {
@@ -67,6 +87,10 @@ export default function ItemsPage() {
           + Add Item
         </button>
       </div>
+
+      {error && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{error}</div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">

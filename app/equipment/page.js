@@ -7,6 +7,7 @@ export default function EquipmentPage() {
   const [equipment, setEquipment] = useState([]);
   const [locations, setLocations] = useState([]);
   const [locationFilter, setLocationFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,6 +32,15 @@ export default function EquipmentPage() {
     };
   }, [locationFilter]);
 
+  const q = search.trim().toLowerCase();
+  const filteredEquipment = q
+    ? equipment.filter((e) =>
+        [e.name, e.make, e.model, e.serial, e.category].some(
+          (v) => typeof v === "string" && v.toLowerCase().includes(q)
+        )
+      )
+    : equipment;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -48,7 +58,7 @@ export default function EquipmentPage() {
         </Link>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <select
           value={locationFilter}
           onChange={(e) => setLocationFilter(e.target.value)}
@@ -61,6 +71,13 @@ export default function EquipmentPage() {
             </option>
           ))}
         </select>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, make, model, serial, category…"
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-[16rem]"
+        />
       </div>
 
       {loading ? (
@@ -70,9 +87,14 @@ export default function EquipmentPage() {
           <p className="text-lg">No equipment yet</p>
           <p className="text-sm mt-1">Add your first machine to get started</p>
         </div>
+      ) : filteredEquipment.length === 0 ? (
+        <div className="text-center py-12 text-slate-400">
+          <p className="text-lg">No matching equipment</p>
+          <p className="text-sm mt-1">Try a different search or filter</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {equipment.map((e) => {
+          {filteredEquipment.map((e) => {
             const thumb = Array.isArray(e.photo_urls) ? e.photo_urls[0] : null;
             const title =
               e.name || [e.make, e.model].filter(Boolean).join(" ") || "Untitled equipment";

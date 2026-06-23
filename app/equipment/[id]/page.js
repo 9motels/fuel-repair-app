@@ -4,22 +4,12 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import PhotoButtons from "@/lib/PhotoButtons";
+import { uploadFile } from "@/lib/equipmentUtils";
 
 const WORK_TYPES = ["Repair", "Routine", "Inspection", "Replacement", "Other"];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
-}
-
-async function uploadFile(file) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch("/api/equipment/upload", { method: "POST", body: fd });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Photo upload failed.");
-  }
-  return (await res.json()).url;
 }
 
 export default function EquipmentDetailPage({ params }) {

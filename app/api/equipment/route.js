@@ -1,14 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-
-function safeParse(v, fallback) {
-  if (v == null) return fallback;
-  try {
-    return JSON.parse(v);
-  } catch {
-    return fallback;
-  }
-}
+import { safeParse } from '@/lib/equipmentUtils';
 
 export async function GET(request) {
   const db = await getDb();

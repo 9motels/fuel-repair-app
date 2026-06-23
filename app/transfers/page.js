@@ -11,6 +11,7 @@ export default function TransfersPage() {
   const [inventory, setInventory] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [form, setForm] = useState({
     item_id: "", from_location_id: "", to_location_id: "", quantity: 1, notes: "",
   });
@@ -38,19 +39,43 @@ export default function TransfersPage() {
     setSearchQuery(""); setFilterFromDate(""); setFilterToDate("");
   }
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [tRes, iRes, lRes, invRes] = await Promise.all([
+          fetch("/api/transfers"),
+          fetch("/api/items"),
+          fetch("/api/locations"),
+          fetch("/api/inventory"),
+        ]);
+        if (!tRes.ok || !iRes.ok || !lRes.ok || !invRes.ok) throw new Error("Failed to load data");
+        const [t, i, l, inv] = await Promise.all([tRes.json(), iRes.json(), lRes.json(), invRes.json()]);
+        if (!cancelled) { setTransfers(t); setItems(i); setLocations(l); setInventory(inv); }
+      } catch {
+        if (!cancelled) setLoadError("Could not load transfers. Please refresh to try again.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function fetchAll() {
-    const [tRes, iRes, lRes, invRes] = await Promise.all([
-      fetch("/api/transfers"),
-      fetch("/api/items"),
-      fetch("/api/locations"),
-      fetch("/api/inventory"),
-    ]);
-    setTransfers(await tRes.json());
-    setItems(await iRes.json());
-    setLocations(await lRes.json());
-    setInventory(await invRes.json());
+    try {
+      const [tRes, iRes, lRes, invRes] = await Promise.all([
+        fetch("/api/transfers"),
+        fetch("/api/items"),
+        fetch("/api/locations"),
+        fetch("/api/inventory"),
+      ]);
+      if (!tRes.ok || !iRes.ok || !lRes.ok || !invRes.ok) throw new Error("Failed to load data");
+      setTransfers(await tRes.json());
+      setItems(await iRes.json());
+      setLocations(await lRes.json());
+      setInventory(await invRes.json());
+      setLoadError("");
+    } catch {
+      setLoadError("Could not load transfers. Please refresh to try again.");
+    }
   }
 
   function getStock(itemId, locationId) {
@@ -103,6 +128,10 @@ export default function TransfersPage() {
           + New Transfer
         </button>
       </div>
+
+      {loadError && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{loadError}</div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">

@@ -11,6 +11,12 @@ export async function POST(request) {
   if (!file || typeof file === 'string') {
     return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
   }
+  if (!file.type || !file.type.startsWith('image/')) {
+    return NextResponse.json({ error: 'Only image files are allowed.' }, { status: 400 });
+  }
+  if (file.size > 15 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Image is too large (max 15 MB).' }, { status: 400 });
+  }
   const name = (file.name || 'photo').replace(/[^\w.\-]/g, '_');
   try {
     // On Vercel, @vercel/blob authenticates via the connected store (BLOB_STORE_ID)
