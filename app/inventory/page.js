@@ -184,10 +184,14 @@ export default function InventoryPage() {
       {/* Item cards */}
       <div className="space-y-2 mt-3">
         {Object.entries(groupedByItem).map(([itemId, data]) => {
-          const isLow = data.min_quantity > 0 && data.total <= data.min_quantity;
+          const hasMin = data.min_quantity > 0;
+          const isLow = hasMin && data.total <= data.min_quantity;
+          // "Getting close" = within 50% above the minimum (e.g. min 2 -> warn at 3).
+          const isClose = hasMin && !isLow && data.total <= Math.ceil(data.min_quantity * 1.5);
+          const cardClass = isLow ? "border-red-300 bg-red-50" : isClose ? "border-amber-300 bg-amber-50" : "border-slate-200";
 
           return (
-            <div key={itemId} className={`bg-white rounded-xl shadow-sm border p-3 ${isLow ? "border-red-300 bg-red-50" : "border-slate-200"}`}>
+            <div key={itemId} className={`bg-white rounded-xl shadow-sm border p-3 ${cardClass}`}>
               {/* Item header */}
               <div className="flex items-center justify-between mb-1">
                 <div className="flex-1 min-w-0">
@@ -198,9 +202,13 @@ export default function InventoryPage() {
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-2">
-                  <span className={`text-base font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>{data.total}</span>
+                  <span className={`text-base font-bold ${isLow ? "text-red-600" : isClose ? "text-amber-600" : "text-slate-900"}`}>{data.total}</span>
                   <span className="text-xs text-slate-400 ml-1">total</span>
-                  {isLow && <p className="text-xs text-red-500 font-medium">Min: {data.min_quantity}</p>}
+                  {hasMin && (
+                    <p className={`text-xs font-medium ${isLow ? "text-red-500" : isClose ? "text-amber-600" : "text-slate-400"}`}>
+                      Min: {data.min_quantity}{isLow ? " · low" : isClose ? " · getting low" : ""}
+                    </p>
+                  )}
                 </div>
               </div>
 
