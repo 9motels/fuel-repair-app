@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { usePerson } from "@/lib/personContext";
+import { itemUnitCost } from "@/lib/itemCost";
 
 // Pre-pick an existing item for an extracted invoice line: part number first,
 // then name match. Falls back to "new" so unmatched lines create a new item.
@@ -224,6 +225,8 @@ export default function PurchasesPage() {
     setScanError("");
     // Cache items created during this save so a repeated line doesn't create dupes.
     const createdCache = {};
+    const itemsById = {};
+    items.forEach((it) => { itemsById[it.id] = it; });
     try {
       for (const line of includedLines) {
         const qty = parseInt(line.quantity) || 0;
@@ -248,6 +251,17 @@ export default function PurchasesPage() {
             const created = await iRes.json();
             itemId = created.id;
             createdCache[key] = itemId;
+          }
+        } else {
+          // Existing item: auto-update its "Cost each" to the newest invoice price
+          // (preserving its other fields). Skip if the price hasn't changed.
+          const existing = itemsById[itemId];
+          if (existing && price > 0 && itemUnitCost(existing) !== price) {
+            await fetch("/api/items", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...existing, unit_cost: price }),
+            });
           }
         }
         const pRes = await fetch("/api/purchases", {
@@ -423,7 +437,7 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500 mb-2">Review each line. Match it to an existing item or leave it as “➕ New item” to create one. Uncheck anything you don’t want.</p>
+              <p className="text-xs text-slate-500 mb-2">Review each line. Match it to an existing item or leave it as “➕ New item” to create one. Uncheck anything you don’t want. Saving sets each matched item’s “Cost each” to the price shown.</p>
               <div className="overflow-x-auto border border-slate-200 rounded-lg">
                 <table className="w-full text-sm min-w-[720px]">
                   <thead className="bg-slate-50 border-b border-slate-200">
