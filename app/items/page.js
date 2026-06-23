@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parsePriceFromText, itemUnitCost } from "@/lib/itemCost";
 
 const CATEGORIES = ["Filters", "Hoses", "Pumps", "Fittings", "Valves", "Seals & Gaskets", "Meters", "Nozzles", "Electrical", "Hardware", "Other"];
 
@@ -44,9 +45,10 @@ export default function ItemsPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     const method = editing ? "PUT" : "POST";
-    const body = editing ? { ...form, id: editing } : form;
+    const payload = { ...form, unit_cost: parseFloat(form.unit_cost) || 0 };
+    const body = editing ? { ...payload, id: editing } : payload;
     await fetch("/api/items", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    setForm({ name: "", description: "", category: "", part_number: "", unit: "each", min_quantity: 0 });
+    setForm({ name: "", description: "", category: "", part_number: "", unit: "each", min_quantity: 0, unit_cost: "" });
     setEditing(null);
     setShowForm(false);
     fetchItems();
@@ -62,6 +64,8 @@ export default function ItemsPage() {
     setForm({
       name: item.name, description: item.description, category: item.category,
       part_number: item.part_number, unit: item.unit, min_quantity: item.min_quantity,
+      // Pre-fill cost from unit_cost, or the legacy "Unit price: $X" in description.
+      unit_cost: Number(item.unit_cost) > 0 ? item.unit_cost : (parsePriceFromText(item.description) || ""),
     });
     setEditing(item.id);
     setShowForm(true);
@@ -81,7 +85,7 @@ export default function ItemsPage() {
           <p className="text-sm text-slate-500 mt-1">Manage your fuel repair parts and supplies</p>
         </div>
         <button
-          onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ name: "", description: "", category: "", part_number: "", unit: "each", min_quantity: 0 }); }}
+          onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ name: "", description: "", category: "", part_number: "", unit: "each", min_quantity: 0, unit_cost: "" }); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
         >
           + Add Item
@@ -135,6 +139,13 @@ export default function ItemsPage() {
               <input type="number" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: parseInt(e.target.value) || 0 })}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Cost each ($)</label>
+              <input type="number" min="0" step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00" />
+              <p className="text-[11px] text-slate-400 mt-1">Used to value on-hand inventory on the dashboard.</p>
+            </div>
             <div className="md:col-span-2 lg:col-span-1">
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -171,6 +182,7 @@ export default function ItemsPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600">Category</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600">Unit</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600">Min Qty</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600">Cost each</th>
               <th className="text-right px-4 py-3 font-medium text-slate-600">Actions</th>
             </tr>
           </thead>
@@ -189,6 +201,7 @@ export default function ItemsPage() {
                 </td>
                 <td className="px-4 py-3 text-slate-600">{item.unit}</td>
                 <td className="px-4 py-3 text-slate-600">{item.min_quantity || "-"}</td>
+                <td className="px-4 py-3 text-right text-slate-600">{itemUnitCost(item) > 0 ? `$${itemUnitCost(item).toFixed(2)}` : "-"}</td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={() => startEdit(item)} className="text-blue-600 hover:text-blue-800 text-xs font-medium mr-3">Edit</button>
                   <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>

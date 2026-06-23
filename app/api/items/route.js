@@ -10,18 +10,18 @@ export async function GET() {
 export async function POST(request) {
   const db = await getDb();
   const body = await request.json();
-  const { name, description, category, part_number, unit, min_quantity } = body;
+  const { name, description, category, part_number, unit, min_quantity, unit_cost } = body;
   if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  const result = await db.execute({ sql: 'INSERT INTO items (name, description, category, part_number, unit, min_quantity) VALUES (?, ?, ?, ?, ?, ?)', args: [name, description || '', category || '', part_number || '', unit || 'each', min_quantity || 0] });
+  const result = await db.execute({ sql: 'INSERT INTO items (name, description, category, part_number, unit, min_quantity, unit_cost) VALUES (?, ?, ?, ?, ?, ?, ?)', args: [name, description || '', category || '', part_number || '', unit || 'each', min_quantity || 0, unit_cost || 0] });
   return NextResponse.json({ id: Number(result.lastInsertRowid), ...body });
 }
 
 export async function PUT(request) {
   const db = await getDb();
   const body = await request.json();
-  const { id, name, description, category, part_number, unit, min_quantity } = body;
+  const { id, name, description, category, part_number, unit, min_quantity, unit_cost } = body;
   if (!id || !name) return NextResponse.json({ error: 'ID and name are required' }, { status: 400 });
-  await db.execute({ sql: 'UPDATE items SET name = ?, description = ?, category = ?, part_number = ?, unit = ?, min_quantity = ? WHERE id = ?', args: [name, description || '', category || '', part_number || '', unit || 'each', min_quantity || 0, id] });
+  await db.execute({ sql: 'UPDATE items SET name = ?, description = ?, category = ?, part_number = ?, unit = ?, min_quantity = ?, unit_cost = ? WHERE id = ?', args: [name, description || '', category || '', part_number || '', unit || 'each', min_quantity || 0, unit_cost || 0, id] });
   return NextResponse.json({ id, ...body });
 }
 

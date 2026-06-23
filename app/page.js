@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { itemUnitCost } from "@/lib/itemCost";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes] = await Promise.all([
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes] = await Promise.all([
         fetch("/api/locations"),
         fetch("/api/alerts"),
         fetch("/api/purchases"),
@@ -17,6 +18,7 @@ export default function Dashboard() {
         fetch("/api/repairs"),
         fetch("/api/inventory"),
         fetch("/api/equipment"),
+        fetch("/api/items"),
       ]);
       setData({
         locations: await locRes.json(),
@@ -26,6 +28,7 @@ export default function Dashboard() {
         repairs: await repRes.json(),
         inventory: await invRes.json(),
         equipment: await eqRes.json(),
+        items: await itemRes.json(),
       });
       setLoading(false);
     }
@@ -37,8 +40,25 @@ export default function Dashboard() {
   }
 
   const totalItems = new Set(data.inventory.map((i) => i.item_id)).size;
-  const totalStock = data.inventory.reduce((sum, i) => sum + i.quantity, 0);
   const totalSpent = data.purchases.reduce((sum, p) => sum + p.quantity * p.unit_price, 0);
+
+  // Value of inventory on hand = qty x the item's cost. Cost is the item's
+  // "Cost each" (unit_cost, or a price parsed from its description), falling back
+  // to its weighted-average purchase price when no cost is recorded.
+  const itemsById = {};
+  data.items.forEach((it) => { itemsById[it.id] = it; });
+  const spendByItem = {};
+  const qtyByItem = {};
+  data.purchases.forEach((p) => {
+    spendByItem[p.item_id] = (spendByItem[p.item_id] || 0) + p.quantity * p.unit_price;
+    qtyByItem[p.item_id] = (qtyByItem[p.item_id] || 0) + p.quantity;
+  });
+  const costForItem = (itemId) => {
+    const fromItem = itemUnitCost(itemsById[itemId]);
+    if (fromItem > 0) return fromItem;
+    return qtyByItem[itemId] ? spendByItem[itemId] / qtyByItem[itemId] : 0;
+  };
+  const inventoryValue = data.inventory.reduce((sum, i) => sum + i.quantity * costForItem(i.item_id), 0);
 
   const stockByLocation = {};
   data.inventory.forEach((inv) => {
@@ -87,8 +107,9 @@ export default function Dashboard() {
           <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{totalItems}</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
-          <p className="text-xs md:text-sm text-slate-500">Total Stock</p>
-          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{totalStock.toLocaleString()}</p>
+          <p className="text-xs md:text-sm text-slate-500">Inventory Value</p>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">${inventoryValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">on hand, at item cost</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
           <p className="text-xs md:text-sm text-slate-500">Total Spent</p>
