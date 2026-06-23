@@ -98,6 +98,22 @@ export default function InventoryPage() {
     });
   }
 
+  async function removeFromLocation(itemId, locationId, qty, itemName, locName) {
+    if (qty > 0 && !confirm(`Remove "${itemName}" from ${locName}? It shows ${qty} in stock here — that count will be discarded.`)) return;
+    await fetch(`/api/inventory?item_id=${itemId}&location_id=${locationId}`, { method: "DELETE" });
+    await fetchAll();
+  }
+
+  async function addToLocation(itemId, locationId) {
+    if (!locationId) return;
+    await fetch("/api/inventory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_id: parseInt(itemId), location_id: parseInt(locationId), quantity: 0 }),
+    });
+    await fetchAll();
+  }
+
   function startEdit(itemId, locationId, currentQty) {
     setEditingCell({ itemId, locationId });
     setEditValue(currentQty.toString());
@@ -199,6 +215,7 @@ export default function InventoryPage() {
                   const isSaving = saving === `${itemId}-${locId}`;
 
                   return (
+                    <>
                     <div className="flex items-center justify-between mt-2 bg-slate-50 rounded-lg px-3 py-2">
                       {isEditing ? (
                         <div className="flex items-center gap-2 flex-1">
@@ -228,12 +245,17 @@ export default function InventoryPage() {
                         </>
                       )}
                     </div>
+                    <div className="mt-1.5 text-right">
+                      <button onClick={() => removeFromLocation(itemId, locId, qty, data.item_name, locations.find((l) => String(l.id) === locId)?.name || "this location")}
+                        className="text-xs text-slate-400 hover:text-red-600">Remove from this location</button>
+                    </div>
+                    </>
                   );
                 })()
               ) : (
-                /* All locations view */
+                /* All locations view — only locations that carry this item */
                 <div className="space-y-1.5 mt-2">
-                  {locations.map((l) => {
+                  {locations.filter((l) => data.locations[String(l.id)]).map((l) => {
                     const locId = String(l.id);
                     const inv = data.locations[locId];
                     const qty = inv ? Number(inv.quantity) : 0;
@@ -266,11 +288,28 @@ export default function InventoryPage() {
                               className="w-7 h-7 flex items-center justify-center bg-green-100 text-green-700 rounded text-sm font-bold hover:bg-green-200 active:bg-green-300 disabled:opacity-50">
                               +
                             </button>
+                            <button onClick={() => removeFromLocation(itemId, locId, qty, data.item_name, l.name)}
+                              title={`Remove from ${l.name}`}
+                              className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-600 hover:bg-red-50 rounded text-base ml-0.5">
+                              ✕
+                            </button>
                           </div>
                         )}
                       </div>
                     );
                   })}
+                  {/* Add this item to a location it isn't carried at yet */}
+                  {locations.some((l) => !data.locations[String(l.id)]) && (
+                    <div className="pt-1">
+                      <select value="" onChange={(e) => addToLocation(itemId, e.target.value)}
+                        className="text-xs text-blue-600 bg-transparent border border-dashed border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400">
+                        <option value="">+ Add to a location…</option>
+                        {locations.filter((l) => !data.locations[String(l.id)]).map((l) => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
