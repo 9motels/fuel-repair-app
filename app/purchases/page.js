@@ -4,15 +4,36 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { usePerson } from "@/lib/personContext";
 import { itemUnitCost } from "@/lib/itemCost";
 
-// Pre-pick an existing item for an extracted invoice line: part number first,
-// then name match. Falls back to "new" so unmatched lines create a new item.
-function matchItemId(line, items) {
-  const pn = (line.part_number || "").trim().toLowerCase();
+function norm(s) {
+  return (s || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// Build fast lookups from remembered invoice→item mappings. Only keep aliases
+// whose item still exists (no FK enforcement, so items can be deleted).
+function buildAliasIndex(aliases, itemsById) {
+  const byDesc = new Map();
+  const byPart = new Map();
+  for (const a of aliases || []) {
+    if (!itemsById[a.item_id]) continue;
+    if (a.source_text) byDesc.set(norm(a.source_text), a.item_id);
+    if (a.part_number) byPart.set(norm(a.part_number), a.item_id);
+  }
+  return { byDesc, byPart };
+}
+
+// Pre-pick an existing item for an extracted invoice line: a remembered mapping
+// first, then part number, then name match. Falls back to "new".
+function matchItemId(line, items, aliasIdx) {
+  const pn = norm(line.part_number);
+  const desc = norm(line.description);
+  if (aliasIdx) {
+    if (pn && aliasIdx.byPart.has(pn)) return String(aliasIdx.byPart.get(pn));
+    if (desc && aliasIdx.byDesc.has(desc)) return String(aliasIdx.byDesc.get(desc));
+  }
   if (pn) {
     const byPn = items.find((i) => (i.part_number || "").trim().toLowerCase() === pn);
     if (byPn) return String(byPn.id);
   }
-  const desc = (line.description || "").trim().toLowerCase();
   if (desc) {
     const exact = items.find((i) => i.name.trim().toLowerCase() === desc);
     if (exact) return String(exact.id);
@@ -36,6 +57,7 @@ export default function PurchasesPage() {
   const [purchases, setPurchases] = useState([]);
   const [items, setItems] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [aliases, setAliases] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     item_id: "", location_id: "", quantity: 1, unit_price: "", vendor: "", purchase_date: new Date().toISOString().split("T")[0], notes: "",
@@ -81,14 +103,16 @@ export default function PurchasesPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [pRes, iRes, lRes] = await Promise.all([
+        const [pRes, iRes, lRes, aRes] = await Promise.all([
           fetch("/api/purchases"),
           fetch("/api/items"),
           fetch("/api/locations"),
+          fetch("/api/purchases/aliases"),
         ]);
         if (!pRes.ok || !iRes.ok || !lRes.ok) throw new Error("Failed to load data");
         const [p, i, l] = await Promise.all([pRes.json(), iRes.json(), lRes.json()]);
-        if (!cancelled) { setPurchases(p); setItems(i); setLocations(l); }
+        const a = aRes.ok ? await aRes.json() : [];
+        if (!cancelled) { setPurchases(p); setItems(i); setLocations(l); setAliases(a); }
       } catch {
         if (!cancelled) setError("Could not load purchases. Please refresh to try again.");
       }
@@ -98,15 +122,17 @@ export default function PurchasesPage() {
 
   async function fetchAll() {
     try {
-      const [pRes, iRes, lRes] = await Promise.all([
+      const [pRes, iRes, lRes, aRes] = await Promise.all([
         fetch("/api/purchases"),
         fetch("/api/items"),
         fetch("/api/locations"),
+        fetch("/api/purchases/aliases"),
       ]);
       if (!pRes.ok || !iRes.ok || !lRes.ok) throw new Error("Failed to load data");
       setPurchases(await pRes.json());
       setItems(await iRes.json());
       setLocations(await lRes.json());
+      setAliases(aRes.ok ? await aRes.json() : []);
       setError("");
     } catch {
       setError("Could not load purchases. Please refresh to try again.");
@@ -190,12 +216,15 @@ export default function PurchasesPage() {
       if (!res.ok) throw new Error(data.error || "Could not read the invoice.");
       setDraftVendor(data.vendor || "");
       setDraftDate(normalizeDate(data.invoice_date) || new Date().toISOString().split("T")[0]);
+      const itemsById = {};
+      items.forEach((it) => { itemsById[it.id] = it; });
+      const aliasIdx = buildAliasIndex(aliases, itemsById);
       const lines = (Array.isArray(data.line_items) ? data.line_items : []).map((l) => ({
         description: l.description || "",
         part_number: l.part_number || "",
         quantity: Number(l.quantity) > 0 ? Number(l.quantity) : 1,
         unit_price: Number(l.unit_price) >= 0 ? Number(l.unit_price) : 0,
-        item_id: matchItemId(l, items),
+        item_id: matchItemId(l, items, aliasIdx),
         include: true,
       }));
       setDraftLines(lines);
@@ -227,6 +256,7 @@ export default function PurchasesPage() {
     const createdCache = {};
     const itemsById = {};
     items.forEach((it) => { itemsById[it.id] = it; });
+    const learned = [];
     try {
       for (const line of includedLines) {
         const qty = parseInt(line.quantity) || 0;
@@ -279,6 +309,18 @@ export default function PurchasesPage() {
           }),
         });
         if (!pRes.ok) throw new Error(`Could not log purchase for: ${line.description || ""}`);
+        // Remember this invoice-line -> item mapping for next time.
+        const st = norm(line.description);
+        if (st) learned.push({ source_text: st, part_number: norm(line.part_number), vendor: draftVendor || "", item_id: parseInt(itemId) });
+      }
+      if (learned.length) {
+        try {
+          await fetch("/api/purchases/aliases", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ aliases: learned }),
+          });
+        } catch { /* best-effort: remembering shouldn't block the save */ }
       }
       resetScan();
       fetchAll();
