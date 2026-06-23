@@ -46,3 +46,14 @@ export async function PUT(request) {
   await db.execute({ sql: "UPDATE inventory SET quantity = ?, updated_at = datetime('now') WHERE item_id = ? AND location_id = ?", args: [quantity, item_id, location_id] });
   return NextResponse.json({ success: true });
 }
+
+// Stop carrying an item at a location (removes the row entirely).
+export async function DELETE(request) {
+  const db = await getDb();
+  const { searchParams } = new URL(request.url);
+  const itemId = searchParams.get('item_id');
+  const locationId = searchParams.get('location_id');
+  if (!itemId || !locationId) return NextResponse.json({ error: 'item_id and location_id are required' }, { status: 400 });
+  await db.execute({ sql: 'DELETE FROM inventory WHERE item_id = ? AND location_id = ?', args: [itemId, locationId] });
+  return NextResponse.json({ success: true });
+}
