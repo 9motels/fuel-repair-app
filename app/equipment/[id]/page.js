@@ -16,6 +16,7 @@ export default function EquipmentDetailPage({ params }) {
   const { id } = use(params);
   const { currentPerson } = usePerson();
   const [eq, setEq] = useState(null);
+  const [repairs, setRepairs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
@@ -27,10 +28,15 @@ export default function EquipmentDetailPage({ params }) {
   const [logError, setLogError] = useState("");
 
   async function load() {
-    const res = await fetch(`/api/equipment/${id}`);
+    const [res, repairsRes] = await Promise.all([
+      fetch(`/api/equipment/${id}`),
+      fetch(`/api/repairs?equipment_id=${id}`),
+    ]);
     const data = await res.json();
+    const repairsData = repairsRes.ok ? await repairsRes.json() : [];
     if (!res.ok) setError(data.error || "Not found");
     else setEq(data);
+    setRepairs(Array.isArray(repairsData) ? repairsData : []);
     setLoading(false);
   }
 
@@ -246,6 +252,35 @@ export default function EquipmentDetailPage({ params }) {
                       </a>
                     ))}
                   </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Repairs */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <h2 className="text-lg font-semibold text-slate-900 mb-3">Repairs</h2>
+        {repairs.length === 0 ? (
+          <p className="text-sm text-slate-500">No repairs logged for this machine.</p>
+        ) : (
+          <ul className="space-y-4">
+            {repairs.map((r) => (
+              <li key={r.id} className="border-l-2 border-slate-200 pl-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-slate-800">{r.description || "Repair"}</div>
+                  <span className="text-sm font-semibold text-slate-900">${Number(r.total_cost || 0).toFixed(2)}</span>
+                </div>
+                <div className="text-xs text-slate-500">{r.repair_date}</div>
+                {Array.isArray(r.items) && r.items.length > 0 && (
+                  <ul className="mt-1 space-y-0.5">
+                    {r.items.map((it, i) => (
+                      <li key={i} className="text-xs text-slate-600">
+                        {it.item_name} x{it.quantity}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </li>
             ))}

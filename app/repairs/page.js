@@ -9,6 +9,7 @@ export default function RepairsPage() {
   const [items, setItems] = useState([]);
   const [locations, setLocations] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [equipment, setEquipment] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -17,7 +18,7 @@ export default function RepairsPage() {
   const [filterStatus, setFilterStatus] = useState("all"); // all | open | closed
 
   const [repairForm, setRepairForm] = useState({
-    location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "",
+    location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "", equipment_id: "",
   });
 
   const [itemForm, setItemForm] = useState({ item_id: "", source_location_id: "", quantity: 1, unit_cost: "" });
@@ -34,13 +35,14 @@ export default function RepairsPage() {
   }, []);
 
   async function fetchAll() {
-    const [rRes, iRes, lRes, invRes] = await Promise.all([
-      fetch("/api/repairs"), fetch("/api/items"), fetch("/api/locations"), fetch("/api/inventory"),
+    const [rRes, iRes, lRes, invRes, eqRes] = await Promise.all([
+      fetch("/api/repairs"), fetch("/api/items"), fetch("/api/locations"), fetch("/api/inventory"), fetch("/api/equipment"),
     ]);
     setRepairs(await rRes.json());
     setItems(await iRes.json());
     setLocations(await lRes.json());
     setInventory(await invRes.json());
+    setEquipment(await eqRes.json());
   }
 
   function getStock(itemId, locationId) {
@@ -93,12 +95,13 @@ export default function RepairsPage() {
         ...repairForm,
         location_id: parseInt(repairForm.location_id),
         pump_number: repairForm.pump_number ? parseInt(repairForm.pump_number) : null,
+        equipment_id: repairForm.equipment_id ? parseInt(repairForm.equipment_id) : null,
         created_by_id: currentPerson?.id ?? null,
         items: repairItems.map(i => ({ item_id: i.item_id, source_location_id: i.source_location_id, quantity: i.quantity, unit_cost: i.unit_cost })),
       }),
     });
     if (!res.ok) { const data = await res.json(); setError(data.error || "Failed to save repair"); return; }
-    setRepairForm({ location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "" });
+    setRepairForm({ location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "", equipment_id: "" });
     setRepairItems([]);
     setShowForm(false);
     fetchAll();
@@ -119,6 +122,7 @@ export default function RepairsPage() {
       repair_date: new Date().toISOString().split("T")[0], // today, not the original date
       description: repair.description || "",
       notes: repair.notes || "",
+      equipment_id: String(repair.equipment_id ?? ""),
     });
     setRepairItems((repair.items || []).map((i) => ({
       item_id: i.item_id,
@@ -230,7 +234,7 @@ export default function RepairsPage() {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="grid grid-cols-2 gap-3 mb-2">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
               <input type="date" required value={repairForm.repair_date} onChange={(e) => setRepairForm({ ...repairForm, repair_date: e.target.value })}
@@ -242,6 +246,16 @@ export default function RepairsPage() {
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g. Nozzle swap" />
             </div>
+          </div>
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Equipment (optional)</label>
+            <select value={repairForm.equipment_id} onChange={(e) => setRepairForm({ ...repairForm, equipment_id: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">None</option>
+              {equipment.map((eq) => (
+                <option key={eq.id} value={eq.id}>{eq.name || [eq.make, eq.model].filter(Boolean).join(" ") || `Equipment #${eq.id}`}</option>
+              ))}
+            </select>
           </div>
 
           {/* Items already added */}
@@ -396,6 +410,9 @@ export default function RepairsPage() {
                   <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full">{repair.location_name}</span>
                   {repair.pump_number && (
                     <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Pump {repair.pump_number}</span>
+                  )}
+                  {repair.equipment_name && (
+                    <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{repair.equipment_name}</span>
                   )}
                   {repair.status === "closed" ? (
                     <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">Closed</span>
