@@ -35,12 +35,15 @@ export default function RootLayout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} md:h-full`}>
       <head>
         <title>23 Fuels Maintenance App</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="h-full flex flex-col md:flex-row">
+      {/* On mobile the document scrolls natively (no inner scroll container — that
+          janks/repaint-artifacts on mobile browsers). On md+ we pin to the viewport
+          and let only <main> scroll, so the sidebar stays fixed. */}
+      <body className="min-h-screen md:h-full flex flex-col md:flex-row md:overflow-hidden">
         <PersonProvider>
         {/* Mobile header */}
         <header className="md:hidden bg-slate-800 text-white flex items-center justify-between px-4 py-3 shrink-0">
@@ -121,7 +124,7 @@ export default function RootLayout({ children }) {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 md:overflow-auto">
           <div className="p-4 md:p-6 max-w-7xl mx-auto">
             {children}
           </div>
