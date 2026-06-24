@@ -176,11 +176,11 @@ export default function TroubleshootPage({ params }) {
     <div className="flex flex-col h-[calc(100dvh-5.5rem)] md:h-[calc(100dvh-3.5rem)]">
       {/* Header */}
       <div className="shrink-0">
-        <Link href={`/equipment/${id}`} className="text-sm text-blue-600 hover:underline">
+        <Link href={`/equipment/${id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
           ← Back to {title}
         </Link>
-        <h1 className="text-xl font-bold text-slate-900 mt-1">Troubleshoot</h1>
-        <p className="text-xs text-slate-500">
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">Troubleshoot</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Grounded in {title}&apos;s details and service history. Attach a photo of the fault or an
           error code for a sharper diagnosis.
         </p>
@@ -191,7 +191,7 @@ export default function TroubleshootPage({ params }) {
         <select
           value={activeConvId || ""}
           onChange={(e) => openConversation(e.target.value ? Number(e.target.value) : null)}
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">New conversation</option>
           {conversations.map((c) => (
@@ -203,16 +203,16 @@ export default function TroubleshootPage({ params }) {
         <button
           type="button"
           onClick={newConversation}
-          className="bg-white border border-slate-300 text-slate-700 rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-50 shrink-0"
+          className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700/60 shrink-0"
         >
           + New
         </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto mt-3 space-y-2 rounded-lg bg-slate-50 border border-slate-200 p-3">
+      <div className="flex-1 overflow-y-auto mt-3 space-y-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3">
         {messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-center text-sm text-slate-400 px-6">
+          <div className="h-full flex items-center justify-center text-center text-sm text-slate-400 dark:text-slate-500 px-6">
             Ask about this machine — describe the problem or attach a photo of the fault or an error
             code. Your conversation is saved so you can look back at it later.
           </div>
@@ -221,7 +221,7 @@ export default function TroubleshootPage({ params }) {
             <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
               <div
                 className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                  m.role === "user" ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-800"
+                  m.role === "user" ? "bg-blue-600 text-white" : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200"
                 }`}
               >
                 {Array.isArray(m.images) && m.images.length > 0 && (
@@ -242,7 +242,7 @@ export default function TroubleshootPage({ params }) {
         <div ref={endRef} />
       </div>
 
-      {error && <div className="shrink-0 text-sm text-red-600 mt-2">{error}</div>}
+      {error && <div className="shrink-0 text-sm text-red-600 dark:text-red-400 mt-2">{error}</div>}
 
       {/* Pending attachments */}
       {(pendingImages.length > 0 || uploadingPhoto) && (
@@ -250,7 +250,7 @@ export default function TroubleshootPage({ params }) {
           {pendingImages.map((url, idx) => (
             <div key={idx} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="w-14 h-14 object-cover rounded border border-slate-300" />
+              <img src={url} alt="" className="w-14 h-14 object-cover rounded border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" />
               <button
                 type="button"
                 onClick={() => removePending(idx)}
@@ -261,7 +261,7 @@ export default function TroubleshootPage({ params }) {
               </button>
             </div>
           ))}
-          {uploadingPhoto && <span className="text-xs text-slate-500">Uploading photo…</span>}
+          {uploadingPhoto && <span className="text-xs text-slate-500 dark:text-slate-400">Uploading photo…</span>}
         </div>
       )}
 
@@ -271,7 +271,7 @@ export default function TroubleshootPage({ params }) {
           type="button"
           onClick={() => attachRef.current?.click()}
           disabled={uploadingPhoto}
-          className="shrink-0 border border-slate-300 text-slate-600 rounded-lg px-3 py-2.5 hover:bg-slate-50 disabled:opacity-60"
+          className="shrink-0 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-slate-600 dark:text-slate-300 rounded-lg px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/60 disabled:opacity-60"
           title="Attach a photo"
           aria-label="Attach a photo"
         >
@@ -279,7 +279,7 @@ export default function TroubleshootPage({ params }) {
         </button>
         <input ref={attachRef} type="file" accept="image/*" multiple className="hidden" onChange={onAttach} />
         <input
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Describe the problem, attach a photo, or ask…"
           value={input}
           onChange={(e) => setInput(e.target.value)}

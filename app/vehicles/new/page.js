@@ -123,18 +123,18 @@ export default function NewVehiclePage() {
   }
 
   const input =
-    "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-  const label = "block text-sm font-medium text-slate-700 mb-1";
+    "w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const label = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1";
 
   return (
     <div className="max-w-2xl">
-      <Link href="/vehicles" className="text-sm text-blue-600 hover:underline">
+      <Link href="/vehicles" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
         ← Back to Vehicles
       </Link>
-      <h1 className="text-2xl font-bold text-slate-900 mt-2 mb-6">Add Vehicle</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 mb-6">Add Vehicle</h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
           <label className={label}>Location *</label>
           <select
             required
@@ -151,11 +151,11 @@ export default function NewVehiclePage() {
           </select>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 space-y-3">
           <label className={label}>Photos (the vehicle, VIN plate, or registration)</label>
           <PhotoButtons onFiles={(f) => setFiles((prev) => [...prev, ...f])} />
           {photoCount > 0 && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {photoCount} photo{photoCount === 1 ? "" : "s"} attached
               {uploaded.length > 0 && ` (${uploaded.length} uploaded)`}
             </p>
@@ -164,18 +164,18 @@ export default function NewVehiclePage() {
             type="button"
             onClick={handleIdentify}
             disabled={identifying || photoCount === 0}
-            className="w-full border border-blue-600 text-blue-700 rounded-lg py-2 text-sm font-medium hover:bg-blue-50 disabled:opacity-50"
+            className="w-full border border-blue-600 text-blue-700 dark:text-blue-300 rounded-lg py-2 text-sm font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 disabled:opacity-50"
           >
             {identifying ? "Identifying…" : "✨ Identify from photo"}
           </button>
           {confidence && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Identified with {confidence} confidence — check the fields below.
             </p>
           )}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 space-y-4">
           <div>
             <label className={label}>Name</label>
             <input
@@ -238,7 +238,7 @@ export default function NewVehiclePage() {
         </div>
 
         {error && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>
+          <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3">{error}</div>
         )}
 
         <button

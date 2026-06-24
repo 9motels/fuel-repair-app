@@ -3,7 +3,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PersonProvider, PersonPicker } from "@/lib/personContext";
 import "./globals.css";
 
@@ -31,15 +31,65 @@ const navItems = [
   { href: "/people", label: "People", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
 ];
 
+function applyThemeClass(t) {
+  const dark = t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.classList.toggle("dark", dark);
+}
+
+const THEME_ICON = {
+  light: "M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M6.34 6.34L4.93 4.93m12.73 0l-1.42 1.42M6.34 17.66l-1.42 1.42M16 12a4 4 0 11-8 0 4 4 0 018 0z",
+  dark: "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z",
+  system: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+};
+
 export default function RootLayout({ children }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState("system");
+
+  useEffect(() => {
+    const saved = (typeof window !== "undefined" && localStorage.getItem("theme")) || "system";
+    Promise.resolve().then(() => setTheme(saved));
+  }, []);
+
+  useEffect(() => {
+    applyThemeClass(theme);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      if ((localStorage.getItem("theme") || "system") === "system") applyThemeClass("system");
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [theme]);
+
+  function cycleTheme() {
+    const order = ["system", "light", "dark"];
+    const next = order[(order.indexOf(theme) + 1) % order.length];
+    setTheme(next);
+    try {
+      localStorage.setItem("theme", next);
+    } catch {}
+    applyThemeClass(next);
+  }
+
+  const themeIcon = (
+    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d={THEME_ICON[theme]} />
+    </svg>
+  );
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} md:h-full`}>
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} md:h-full`}>
       <head>
         <title>23 Fuels Maintenance App</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Apply the saved theme before paint to avoid a flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('theme')||'system';var m=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(t==='system'&&m)){document.documentElement.classList.add('dark');}}catch(e){}})();",
+          }}
+        />
       </head>
       {/* On mobile the document scrolls natively (no inner scroll container — that
           janks/repaint-artifacts on mobile browsers). On md+ we pin to the viewport
@@ -53,6 +103,9 @@ export default function RootLayout({ children }) {
           </div>
           <div className="flex items-center gap-2">
             <PersonPicker variant="header" />
+            <button onClick={cycleTheme} title={`Theme: ${theme}`} className="p-2 rounded-lg hover:bg-slate-700 text-white">
+              {themeIcon}
+            </button>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="p-2 rounded-lg hover:bg-slate-700"
@@ -121,6 +174,16 @@ export default function RootLayout({ children }) {
               );
             })}
           </nav>
+          <div className="px-3 pb-1">
+            <button
+              onClick={cycleTheme}
+              title={`Theme: ${theme} (click to change)`}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white capitalize"
+            >
+              {themeIcon}
+              <span>{theme} mode</span>
+            </button>
+          </div>
           <PersonPicker variant="sidebar" />
         </aside>
 

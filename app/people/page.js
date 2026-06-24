@@ -69,21 +69,21 @@ export default function PeoplePage() {
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">People</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">People</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           Who can be picked as the person doing the work (repairs, transfers, equipment, logs)
         </p>
       </div>
 
       <form
         onSubmit={addPerson}
-        className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6 flex gap-2"
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 mb-6 flex gap-2"
       >
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Name (e.g. Brandon)"
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           disabled={busy}
@@ -94,28 +94,28 @@ export default function PeoplePage() {
       </form>
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+        <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4">
           {error}
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 divide-y divide-slate-100">
         {people.map((p) => (
           <div key={p.id} className="flex items-center justify-between px-5 py-3">
-            <span className={p.active ? "text-slate-900 font-medium" : "text-slate-400 line-through"}>
+            <span className={p.active ? "text-slate-900 dark:text-slate-100 font-medium" : "text-slate-400 dark:text-slate-500 line-through"}>
               {p.name}
             </span>
             <button
               onClick={() => toggle(p)}
               disabled={busy}
-              className="text-xs text-blue-600 hover:underline disabled:opacity-60"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-60"
             >
               {p.active ? "Deactivate" : "Activate"}
             </button>
           </div>
         ))}
         {people.length === 0 && (
-          <div className="px-5 py-8 text-center text-slate-400 text-sm">No people yet</div>
+          <div className="px-5 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">No people yet</div>
         )}
       </div>
     </div>

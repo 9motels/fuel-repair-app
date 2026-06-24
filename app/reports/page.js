@@ -84,21 +84,21 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Reports</h1>
-      <p className="text-sm text-slate-500 mb-4">Repair spend, top parts, and trends across your locations.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">Reports</h1>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Repair spend, top parts, and trends across your locations.</p>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-5 sticky top-0 z-10">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-5 sticky top-0 z-10">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">From</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">From</label>
             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+              className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">To</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">To</label>
             <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+              className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm" />
           </div>
           <button
             onClick={emailReport}
@@ -110,7 +110,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="flex flex-wrap gap-1.5 mt-3">
-          <span className="text-xs text-slate-500 mr-1 mt-1">Quick:</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 mr-1 mt-1">Quick:</span>
           <PresetButton onClick={() => setPreset(7)}>7d</PresetButton>
           <PresetButton onClick={() => setPreset(30)}>30d</PresetButton>
           <PresetButton onClick={() => setPreset(90)}>90d</PresetButton>
@@ -119,7 +119,7 @@ export default function ReportsPage() {
 
         {locations.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs text-slate-500 mb-1.5">Locations (none = all):</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1.5">Locations (none = all):</p>
             <div className="flex flex-wrap gap-1.5">
               {locations.map((l) => {
                 const on = selectedLocationIds.includes(l.id);
@@ -128,7 +128,7 @@ export default function ReportsPage() {
                     key={l.id}
                     onClick={() => toggleLocation(l.id)}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                      on ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                      on ? "bg-blue-600 text-white border-blue-600" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                     }`}
                   >
                     {l.name}
@@ -140,17 +140,17 @@ export default function ReportsPage() {
         )}
 
         {emailStatus === "failed" && (
-          <div className="text-xs text-red-600 mt-2 bg-red-50 border border-red-200 rounded p-2">
+          <div className="text-xs text-red-600 dark:text-red-400 mt-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded p-2">
             Email failed: {emailError}
           </div>
         )}
       </div>
 
       {loadError && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{loadError}</div>
+        <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4">{loadError}</div>
       )}
 
-      {loading && !data && <p className="text-sm text-slate-400">Loading…</p>}
+      {loading && !data && <p className="text-sm text-slate-400 dark:text-slate-500">Loading…</p>}
 
       {data && (
         <>
@@ -183,7 +183,7 @@ export default function ReportsPage() {
               rows={data.top_parts.map((p) => [
                 <div key="part">
                   <div className="font-medium">{p.item_name}</div>
-                  {p.part_number && <div className="font-mono text-xs text-slate-400">{p.part_number}</div>}
+                  {p.part_number && <div className="font-mono text-xs text-slate-400 dark:text-slate-500">{p.part_number}</div>}
                 </div>,
                 p.total_qty,
                 <span key="total" className="font-semibold">{fmt(p.total_cost)}</span>,
@@ -198,10 +198,10 @@ export default function ReportsPage() {
                 align={["left", "center", "center", "right"]}
                 empty="No pump repairs in this range"
                 rows={data.by_pump.map((r) => [
-                  <Link key="loc" href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
+                  <Link key="loc" href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                     {r.location_name}
                   </Link>,
-                  <Link key="pump" href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 hover:underline">
+                  <Link key="pump" href={`/pumps/${r.location_id}/${r.pump_number}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                     Pump {r.pump_number}
                   </Link>,
                   r.repair_count,
@@ -231,7 +231,7 @@ export default function ReportsPage() {
 
 function PresetButton({ children, onClick }) {
   return (
-    <button onClick={onClick} className="text-xs px-2.5 py-1 rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
+    <button onClick={onClick} className="text-xs px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60">
       {children}
     </button>
   );
@@ -239,9 +239,9 @@ function PresetButton({ children, onClick }) {
 
 function SummaryCard({ label, value, highlight }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-4">
-      <p className="text-xs md:text-sm text-slate-500">{label}</p>
-      <p className={`text-xl md:text-2xl font-bold mt-1 ${highlight ? "text-green-700" : "text-slate-900"}`}>{value}</p>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 md:p-4">
+      <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`text-xl md:text-2xl font-bold mt-1 ${highlight ? "text-green-700 dark:text-green-300" : "text-slate-900 dark:text-slate-100"}`}>{value}</p>
     </div>
   );
 }
@@ -250,7 +250,7 @@ function Section({ title, subtitle, children }) {
   return (
     <div className="mb-6">
       <h2 className="text-lg font-semibold mb-1">{title}</h2>
-      {subtitle && <p className="text-xs text-slate-500 mb-2">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{subtitle}</p>}
       {children}
     </div>
   );
@@ -258,24 +258,24 @@ function Section({ title, subtitle, children }) {
 
 function Table({ headers, align, rows, empty }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
       <table className="w-full text-sm min-w-[360px]">
-        <thead className="bg-slate-50 border-b border-slate-200">
+        <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
           <tr>
             {headers.map((h, i) => (
-              <th key={i} className={`px-4 py-3 font-medium text-slate-600 text-${align?.[i] || "left"}`}>{h}</th>
+              <th key={i} className={`px-4 py-3 font-medium text-slate-600 dark:text-slate-300 text-${align?.[i] || "left"}`}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={headers.length} className="px-4 py-6 text-center text-slate-400">{empty}</td>
+              <td colSpan={headers.length} className="px-4 py-6 text-center text-slate-400 dark:text-slate-500">{empty}</td>
             </tr>
           ) : rows.map((cells, i) => (
-            <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+            <tr key={i} className="border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/60">
               {cells.map((c, j) => (
-                <td key={j} className={`px-4 py-3 text-slate-700 text-${align?.[j] || "left"}`}>{c}</td>
+                <td key={j} className={`px-4 py-3 text-slate-700 dark:text-slate-300 text-${align?.[j] || "left"}`}>{c}</td>
               ))}
             </tr>
           ))}
