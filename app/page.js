@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { itemUnitCost } from "@/lib/itemCost";
+import { reminderStatus, reminderDueLabel } from "@/lib/vehicleReminders";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes] = await Promise.all([
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes] = await Promise.all([
         fetch("/api/locations"),
         fetch("/api/alerts"),
         fetch("/api/purchases"),
@@ -20,6 +21,7 @@ export default function Dashboard() {
         fetch("/api/equipment"),
         fetch("/api/items"),
         fetch("/api/vehicles"),
+        fetch("/api/vehicles/service-due"),
       ]);
       setData({
         locations: await locRes.json(),
@@ -31,6 +33,7 @@ export default function Dashboard() {
         equipment: await eqRes.json(),
         items: await itemRes.json(),
         vehicles: await vehRes.json(),
+        serviceDue: await dueRes.json(),
       });
       setLoading(false);
     }
@@ -61,6 +64,20 @@ export default function Dashboard() {
     return qtyByItem[itemId] ? spendByItem[itemId] / qtyByItem[itemId] : 0;
   };
   const inventoryValue = data.inventory.reduce((sum, i) => sum + i.quantity * costForItem(i.item_id), 0);
+
+  // Vehicle service that's overdue or coming due, most urgent first.
+  const RANK = { overdue: 0, soon: 1 };
+  const serviceDue = (data.serviceDue || [])
+    .map((r) => ({ ...r, s: reminderStatus(r, r.vehicle_odometer) }))
+    .filter((r) => r.s.level === "overdue" || r.s.level === "soon")
+    .sort((a, b) => {
+      if (RANK[a.s.level] !== RANK[b.s.level]) return RANK[a.s.level] - RANK[b.s.level];
+      const am = a.s.milesLeft != null ? a.s.milesLeft : Infinity;
+      const bm = b.s.milesLeft != null ? b.s.milesLeft : Infinity;
+      return am - bm;
+    });
+  const overdueCount = serviceDue.filter((r) => r.s.level === "overdue").length;
+  const vehicleTitle = (r) => r.vehicle_name || [r.year, r.make, r.model].filter(Boolean).join(" ") || "Vehicle";
 
   const stockByLocation = {};
   data.inventory.forEach((inv) => {
@@ -158,6 +175,36 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Vehicle Service Due */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Vehicle Service Due</h2>
+            {serviceDue.length > 0 && (
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${overdueCount > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                {serviceDue.length}
+              </span>
+            )}
+          </div>
+          <div className="p-4">
+            {serviceDue.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">All vehicles up to date</p>
+            ) : (
+              <div className="space-y-3">
+                {serviceDue.slice(0, 8).map((r) => (
+                  <Link key={r.id} href={`/vehicles/${r.vehicle_id}`} className="flex items-center justify-between gap-2 hover:bg-slate-50 -mx-1 px-1 rounded">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{vehicleTitle(r)}</p>
+                      <p className="text-xs text-slate-500 truncate">{r.label}</p>
+                    </div>
+                    <span className={`text-xs font-semibold shrink-0 ${r.s.level === "overdue" ? "text-red-600" : "text-amber-600"}`}>
+                      {r.s.level === "overdue" ? "Overdue" : "Due soon"} · {reminderDueLabel(r.s)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Recent Repairs */}
