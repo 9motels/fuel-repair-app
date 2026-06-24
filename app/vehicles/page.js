@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { reminderStatus } from "@/lib/vehicleReminders";
 
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [due, setDue] = useState([]);
   const [locationFilter, setLocationFilter] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -14,7 +16,19 @@ export default function VehiclesPage() {
     fetch("/api/locations")
       .then((r) => r.json())
       .then((d) => setLocations(Array.isArray(d) ? d : []));
+    fetch("/api/vehicles/service-due")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setDue(Array.isArray(d) ? d : []));
   }, []);
+
+  // Worst service status per vehicle (overdue beats due-soon).
+  const worstByVehicle = {};
+  due.forEach((r) => {
+    const lvl = reminderStatus(r, r.vehicle_odometer).level;
+    if (lvl !== "overdue" && lvl !== "soon") return;
+    if (worstByVehicle[r.vehicle_id] === "overdue") return;
+    if (lvl === "overdue" || !worstByVehicle[r.vehicle_id]) worstByVehicle[r.vehicle_id] = lvl;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +137,15 @@ export default function VehiclesPage() {
                   {v.odometer ? (
                     <p className="text-xs text-slate-400 truncate mt-0.5">{Number(v.odometer).toLocaleString()} mi</p>
                   ) : null}
+                  {worstByVehicle[v.id] && (
+                    <span
+                      className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        worstByVehicle[v.id] === "overdue" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {worstByVehicle[v.id] === "overdue" ? "Service overdue" : "Service due soon"}
+                    </span>
+                  )}
                 </div>
               </Link>
             );
