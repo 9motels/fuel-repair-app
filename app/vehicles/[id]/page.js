@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import PhotoButtons from "@/lib/PhotoButtons";
 import { uploadFile } from "@/lib/equipmentUtils";
+import { reminderStatus, reminderDueLabel, intervalLabel } from "@/lib/vehicleReminders";
 
 const SERVICE_TYPES = ["Oil change", "Tire", "Brakes", "Inspection", "Repair", "Fluids", "Battery", "Other"];
 
@@ -12,19 +13,41 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const STATUS_STYLE = {
+  overdue: "bg-red-50 border-red-200 text-red-700",
+  soon: "bg-amber-50 border-amber-200 text-amber-700",
+  ok: "bg-green-50 border-green-200 text-green-700",
+  none: "bg-slate-50 border-slate-200 text-slate-500",
+};
+
+function suggestionNotes(s) {
+  return [s.fluid && `Fluid: ${s.fluid}`, s.capacity && `Capacity: ${s.capacity}`, s.notes]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export default function VehicleDetailPage({ params }) {
   const { id } = use(params);
   const { currentPerson } = usePerson();
   const [v, setV] = useState(null);
+  const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  // add-log form
+  // service log form
   const [log, setLog] = useState({ service_type: "", notes: "", performed_at: today(), odometer: "", cost: "" });
   const [logFiles, setLogFiles] = useState([]);
   const [savingLog, setSavingLog] = useState(false);
   const [logError, setLogError] = useState("");
+
+  // reminders
+  const [plan, setPlan] = useState(null); // { intervals:[{...,_sel}], summary, decoded }
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planError, setPlanError] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [showAddRem, setShowAddRem] = useState(false);
+  const [remForm, setRemForm] = useState({ label: "", interval_miles: "", interval_months: "", notes: "" });
 
   // troubleshoot chat
   const [chat, setChat] = useState([]);
@@ -32,10 +55,14 @@ export default function VehicleDetailPage({ params }) {
   const [chatBusy, setChatBusy] = useState(false);
 
   async function load() {
-    const res = await fetch(`/api/vehicles/${id}`);
+    const [res, remRes] = await Promise.all([
+      fetch(`/api/vehicles/${id}`),
+      fetch(`/api/vehicles/${id}/reminders`),
+    ]);
     const data = await res.json();
     if (!res.ok) setError(data.error || "Not found");
     else setV(data);
+    setReminders(remRes.ok ? await remRes.json() : []);
     setLoading(false);
   }
 
@@ -87,6 +114,88 @@ export default function VehicleDetailPage({ params }) {
     } finally {
       setSavingLog(false);
     }
+  }
+
+  // --- reminders ---
+  async function suggestPlan() {
+    setPlanError("");
+    setPlanBusy(true);
+    try {
+      const res = await fetch(`/api/vehicles/${id}/maintenance-plan`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not build a plan.");
+      const intervals = (Array.isArray(data.intervals) ? data.intervals : []).map((it) => ({ ...it, _sel: true }));
+      setPlan({ intervals, summary: data.summary || "", decoded: data.decoded || null });
+      if (intervals.length === 0) setPlanError("No suggestions came back — add reminders manually below.");
+    } catch (err) {
+      setPlanError(err.message);
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  function toggleSuggestion(i) {
+    setPlan((p) => ({
+      ...p,
+      intervals: p.intervals.map((it, idx) => (idx === i ? { ...it, _sel: !it._sel } : it)),
+    }));
+  }
+
+  async function addSelectedSuggestions() {
+    const selected = (plan?.intervals || []).filter((it) => it._sel);
+    if (selected.length === 0) return;
+    setSavingPlan(true);
+    try {
+      await fetch(`/api/vehicles/${id}/reminders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reminders: selected.map((s) => ({
+            label: s.label,
+            interval_miles: s.interval_miles,
+            interval_months: s.interval_months,
+            notes: suggestionNotes(s),
+          })),
+        }),
+      });
+      setPlan(null);
+      await load();
+    } finally {
+      setSavingPlan(false);
+    }
+  }
+
+  async function addManualReminder(e) {
+    e.preventDefault();
+    if (!remForm.label.trim()) return;
+    await fetch(`/api/vehicles/${id}/reminders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: remForm.label.trim(),
+        interval_miles: remForm.interval_miles,
+        interval_months: remForm.interval_months,
+        notes: remForm.notes.trim(),
+      }),
+    });
+    setRemForm({ label: "", interval_miles: "", interval_months: "", notes: "" });
+    setShowAddRem(false);
+    await load();
+  }
+
+  async function markReminderDone(rid) {
+    await fetch(`/api/vehicle-reminders/${rid}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ last_done_date: today(), last_done_odometer: Number(v.odometer) || 0 }),
+    });
+    await load();
+  }
+
+  async function deleteReminder(rid) {
+    if (!confirm("Remove this reminder?")) return;
+    await fetch(`/api/vehicle-reminders/${rid}`, { method: "DELETE" });
+    await load();
   }
 
   async function sendChat(e) {
@@ -207,6 +316,125 @@ export default function VehicleDetailPage({ params }) {
               </a>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Service reminders */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <h2 className="text-lg font-semibold text-slate-900">Service reminders</h2>
+          <button
+            onClick={suggestPlan}
+            disabled={planBusy}
+            className="text-sm border border-blue-600 text-blue-700 rounded-lg px-3 py-1.5 font-medium hover:bg-blue-50 disabled:opacity-50 shrink-0"
+          >
+            {planBusy ? "Thinking…" : "✨ Suggest from VIN"}
+          </button>
+        </div>
+        <p className="text-sm text-slate-500 mb-3">
+          Track intervals by miles and/or time. Suggestions (with fluids &amp; capacities) are AI estimates —
+          confirm against the owner&apos;s manual.
+        </p>
+
+        {planError && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-3">{planError}</div>}
+
+        {/* AI suggestions review */}
+        {plan && plan.intervals.length > 0 && (
+          <div className="border border-blue-200 bg-blue-50/40 rounded-lg p-4 mb-4">
+            {plan.decoded && (plan.decoded.displacementL || plan.decoded.trim) && (
+              <p className="text-xs text-slate-500 mb-2">
+                VIN decoded: {[plan.decoded.year, plan.decoded.make, plan.decoded.model, plan.decoded.displacementL && `${plan.decoded.displacementL}L`, plan.decoded.trim].filter(Boolean).join(" · ")}
+              </p>
+            )}
+            <ul className="space-y-2">
+              {plan.intervals.map((s, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <input type="checkbox" checked={s._sel} onChange={() => toggleSuggestion(i)} className="mt-1" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900">
+                      {s.label}{" "}
+                      <span className="text-xs font-normal text-slate-500">{intervalLabel({ interval_miles: s.interval_miles, interval_months: s.interval_months })}</span>
+                    </div>
+                    {suggestionNotes(s) && <div className="text-xs text-slate-600">{suggestionNotes(s)}</div>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {plan.summary && <p className="text-xs text-slate-500 mt-3 italic">{plan.summary}</p>}
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={addSelectedSuggestions}
+                disabled={savingPlan || !plan.intervals.some((it) => it._sel)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingPlan ? "Adding…" : `Add ${plan.intervals.filter((it) => it._sel).length} selected`}
+              </button>
+              <button onClick={() => setPlan(null)} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Existing reminders */}
+        {reminders.length === 0 ? (
+          <p className="text-sm text-slate-500">No reminders yet. Use “✨ Suggest from VIN” or add one below.</p>
+        ) : (
+          <ul className="space-y-2">
+            {reminders.map((r) => {
+              const s = reminderStatus(r, v.odometer);
+              return (
+                <li key={r.id} className={`border rounded-lg p-3 ${STATUS_STYLE[s.level] || STATUS_STYLE.none}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900">{r.label}</div>
+                      <div className="text-xs text-slate-500">{intervalLabel(r)}</div>
+                      {r.notes && <div className="text-xs text-slate-600 mt-0.5">{r.notes}</div>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-semibold">
+                        {s.level === "overdue" ? "Overdue" : s.level === "soon" ? "Due soon" : s.level === "none" ? "—" : "OK"}
+                      </div>
+                      <div className="text-xs">{reminderDueLabel(s)}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 mt-2">
+                    <button onClick={() => markReminderDone(r.id)} className="text-xs font-medium text-blue-700 hover:underline">
+                      Mark done today
+                    </button>
+                    <button onClick={() => deleteReminder(r.id)} className="text-xs font-medium text-slate-400 hover:text-red-600">
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* Manual add */}
+        {showAddRem ? (
+          <form onSubmit={addManualReminder} className="bg-slate-50 rounded-lg p-4 space-y-3 mt-4">
+            <input
+              className={fieldClass}
+              placeholder="Label (e.g. Oil change)"
+              value={remForm.label}
+              onChange={(e) => setRemForm({ ...remForm, label: e.target.value })}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <input type="number" min="0" className={fieldClass} placeholder="Every … miles" value={remForm.interval_miles} onChange={(e) => setRemForm({ ...remForm, interval_miles: e.target.value })} />
+              <input type="number" min="0" className={fieldClass} placeholder="Every … months" value={remForm.interval_months} onChange={(e) => setRemForm({ ...remForm, interval_months: e.target.value })} />
+            </div>
+            <input className={fieldClass} placeholder="Notes (fluid, capacity, part…)" value={remForm.notes} onChange={(e) => setRemForm({ ...remForm, notes: e.target.value })} />
+            <div className="flex gap-2">
+              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Add reminder</button>
+              <button type="button" onClick={() => setShowAddRem(false)} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <button onClick={() => setShowAddRem(true)} className="text-sm text-blue-600 hover:underline mt-4">
+            + Add a reminder
+          </button>
         )}
       </div>
 
