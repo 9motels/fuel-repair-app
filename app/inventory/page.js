@@ -152,9 +152,9 @@ export default function InventoryPage() {
   return (
     <div>
       {/* Sticky header with location selector */}
-      <div className="sticky top-0 z-10 bg-slate-50 -mx-4 px-4 pt-2 pb-3 md:-mx-6 md:px-6 border-b border-slate-200 shadow-sm">
+      <div className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 -mx-4 px-4 pt-2 pb-3 md:-mx-6 md:px-6 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="flex items-center justify-between mb-2 gap-2">
-          <h1 className="text-xl font-bold text-slate-900">Inventory</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Inventory</h1>
           <button
             onClick={checkLowStockNow}
             disabled={checkingNow}
@@ -164,7 +164,7 @@ export default function InventoryPage() {
             {checkingNow ? "Checking…" : "Check low stock"}
           </button>
         </div>
-        <p className="text-xs text-slate-500 mb-2">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
           Last alert check: {lastRun
             ? `${formatRelative(lastRun.ran_at)} — ${
                 lastRun.status === "sent" ? `${lastRun.low_stock_count} item${lastRun.low_stock_count === 1 ? "" : "s"} low, email sent` :
@@ -175,7 +175,7 @@ export default function InventoryPage() {
             : "never"}
         </p>
         <select value={filterLocation} onChange={(e) => { setFilterLocation(e.target.value); setEditingCell(null); }}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">All Locations</option>
           {locations.map((l) => <option key={l.id} value={String(l.id)}>{l.name}{l.is_central ? " (Central)" : ""}</option>)}
         </select>
@@ -188,24 +188,24 @@ export default function InventoryPage() {
           const isLow = hasMin && data.total <= data.min_quantity;
           // "Getting close" = within 50% above the minimum (e.g. min 2 -> warn at 3).
           const isClose = hasMin && !isLow && data.total <= Math.ceil(data.min_quantity * 1.5);
-          const cardClass = isLow ? "border-red-300 bg-red-50" : isClose ? "border-amber-300 bg-amber-50" : "border-slate-200";
+          const cardClass = isLow ? "border-red-300 bg-red-50 dark:bg-red-950/40" : isClose ? "border-amber-300 bg-amber-50 dark:bg-amber-950/40" : "border-slate-200 dark:border-slate-700";
 
           return (
-            <div key={itemId} className={`bg-white rounded-xl shadow-sm border p-3 ${cardClass}`}>
+            <div key={itemId} className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border p-3 ${cardClass}`}>
               {/* Item header */}
               <div className="flex items-center justify-between mb-1">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{data.item_name}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{data.item_name}</p>
                   <div className="flex items-center gap-2">
-                    {data.part_number && <span className="text-xs text-slate-400 font-mono">{data.part_number}</span>}
-                    {data.category && <span className="text-xs text-slate-400">{data.category}</span>}
+                    {data.part_number && <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{data.part_number}</span>}
+                    {data.category && <span className="text-xs text-slate-400 dark:text-slate-500">{data.category}</span>}
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-2">
-                  <span className={`text-base font-bold ${isLow ? "text-red-600" : isClose ? "text-amber-600" : "text-slate-900"}`}>{data.total}</span>
-                  <span className="text-xs text-slate-400 ml-1">total</span>
+                  <span className={`text-base font-bold ${isLow ? "text-red-600 dark:text-red-400" : isClose ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-slate-100"}`}>{data.total}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">total</span>
                   {hasMin && (
-                    <p className={`text-xs font-medium ${isLow ? "text-red-500" : isClose ? "text-amber-600" : "text-slate-400"}`}>
+                    <p className={`text-xs font-medium ${isLow ? "text-red-500 dark:text-red-400" : isClose ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}`}>
                       Min: {data.min_quantity}{isLow ? " · low" : isClose ? " · getting low" : ""}
                     </p>
                   )}
@@ -224,7 +224,7 @@ export default function InventoryPage() {
 
                   return (
                     <>
-                    <div className="flex items-center justify-between mt-2 bg-slate-50 rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between mt-2 bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-2">
                       {isEditing ? (
                         <div className="flex items-center gap-2 flex-1">
                           <input ref={inputRef} type="number" value={editValue}
@@ -234,20 +234,20 @@ export default function InventoryPage() {
                           <button onClick={() => saveQty(parseInt(itemId), parseInt(locId), parseInt(editValue) || 0)}
                             className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">Save</button>
                           <button onClick={() => setEditingCell(null)}
-                            className="text-slate-400 text-xs">Cancel</button>
+                            className="text-slate-400 dark:text-slate-500 text-xs">Cancel</button>
                         </div>
                       ) : (
                         <>
                           <button onClick={() => quickAdjust(itemId, locId, qty, -1)}
-                            className="w-10 h-10 flex items-center justify-center bg-red-100 text-red-700 rounded-lg text-xl font-bold hover:bg-red-200 active:bg-red-300 disabled:opacity-50">
+                            className="w-10 h-10 flex items-center justify-center bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg text-xl font-bold hover:bg-red-200 active:bg-red-300 disabled:opacity-50">
                             −
                           </button>
                           <button onClick={() => startEdit(itemId, locId, qty)}
-                            className={`text-2xl font-bold min-w-[3rem] text-center ${"text-slate-900"}`}>
+                            className={`text-2xl font-bold min-w-[3rem] text-center ${"text-slate-900 dark:text-slate-100"}`}>
                             {qty}
                           </button>
                           <button onClick={() => quickAdjust(itemId, locId, qty, 1)}
-                            className="w-10 h-10 flex items-center justify-center bg-green-100 text-green-700 rounded-lg text-xl font-bold hover:bg-green-200 active:bg-green-300 disabled:opacity-50">
+                            className="w-10 h-10 flex items-center justify-center bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-lg text-xl font-bold hover:bg-green-200 active:bg-green-300 disabled:opacity-50">
                             +
                           </button>
                         </>
@@ -255,7 +255,7 @@ export default function InventoryPage() {
                     </div>
                     <div className="mt-1.5 text-right">
                       <button onClick={() => removeFromLocation(itemId, locId, qty, data.item_name, locations.find((l) => String(l.id) === locId)?.name || "this location")}
-                        className="text-xs text-slate-400 hover:text-red-600">Remove from this location</button>
+                        className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-600">Remove from this location</button>
                     </div>
                     </>
                   );
@@ -271,8 +271,8 @@ export default function InventoryPage() {
 
 
                     return (
-                      <div key={l.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-1.5">
-                        <span className="text-xs text-slate-600 truncate mr-2 flex-1">{l.name}</span>
+                      <div key={l.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-1.5">
+                        <span className="text-xs text-slate-600 dark:text-slate-300 truncate mr-2 flex-1">{l.name}</span>
                         {isEditing ? (
                           <div className="flex items-center gap-1">
                             <input ref={inputRef} type="number" value={editValue}
@@ -280,20 +280,20 @@ export default function InventoryPage() {
                               onKeyDown={(e) => handleEditKeyDown(e, itemId, locId)}
                               className="w-14 border border-blue-400 rounded px-1 py-0.5 text-sm text-center focus:outline-none" autoFocus />
                             <button onClick={() => saveQty(parseInt(itemId), parseInt(locId), parseInt(editValue) || 0)}
-                              className="text-blue-600 text-xs font-semibold">OK</button>
+                              className="text-blue-600 dark:text-blue-400 text-xs font-semibold">OK</button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => quickAdjust(itemId, locId, qty, -1)}
-                              className="w-7 h-7 flex items-center justify-center bg-red-100 text-red-700 rounded text-sm font-bold hover:bg-red-200 active:bg-red-300 disabled:opacity-50">
+                              className="w-7 h-7 flex items-center justify-center bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded text-sm font-bold hover:bg-red-200 active:bg-red-300 disabled:opacity-50">
                               −
                             </button>
                             <button onClick={() => startEdit(itemId, locId, qty)}
-                              className={`text-sm font-semibold min-w-[2rem] text-center ${qty === 0 ? "text-slate-400" : "text-slate-900"}`}>
+                              className={`text-sm font-semibold min-w-[2rem] text-center ${qty === 0 ? "text-slate-400 dark:text-slate-500" : "text-slate-900 dark:text-slate-100"}`}>
                               {qty}
                             </button>
                             <button onClick={() => quickAdjust(itemId, locId, qty, 1)}
-                              className="w-7 h-7 flex items-center justify-center bg-green-100 text-green-700 rounded text-sm font-bold hover:bg-green-200 active:bg-green-300 disabled:opacity-50">
+                              className="w-7 h-7 flex items-center justify-center bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded text-sm font-bold hover:bg-green-200 active:bg-green-300 disabled:opacity-50">
                               +
                             </button>
                             <button onClick={() => removeFromLocation(itemId, locId, qty, data.item_name, l.name)}
@@ -310,7 +310,7 @@ export default function InventoryPage() {
                   {locations.some((l) => !data.locations[String(l.id)]) && (
                     <div className="pt-1">
                       <select value="" onChange={(e) => addToLocation(itemId, e.target.value)}
-                        className="text-xs text-blue-600 bg-transparent border border-dashed border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400">
+                        className="text-xs text-blue-600 dark:text-blue-400 bg-transparent border border-dashed border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400">
                         <option value="">+ Add to a location…</option>
                         {locations.filter((l) => !data.locations[String(l.id)]).map((l) => (
                           <option key={l.id} value={l.id}>{l.name}</option>
@@ -326,7 +326,7 @@ export default function InventoryPage() {
       </div>
 
       {Object.keys(groupedByItem).length === 0 && (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
           <p className="text-lg">No inventory records yet</p>
           <p className="text-sm mt-1">Add items and purchases to get started</p>
         </div>

@@ -337,15 +337,15 @@ export default function PurchasesPage() {
     <div>
       <div className="flex items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Purchases</h1>
-          <p className="text-sm text-slate-500 mt-1">Track what you buy and how much you spend</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Purchases</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track what you buy and how much you spend</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => (showScan ? resetScan() : openScan())}
             disabled={!currentPerson}
             title={!currentPerson ? "Pick who you are first" : ""}
-            className="bg-white text-blue-700 border border-blue-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Scan Invoice
           </button>
@@ -361,22 +361,22 @@ export default function PurchasesPage() {
       </div>
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{error}</div>
+        <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4">{error}</div>
       )}
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-4">
-          <p className="text-xs md:text-sm text-slate-500">Purchases</p>
-          <p className="text-xl md:text-2xl font-bold text-slate-900">{purchases.length}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 md:p-4">
+          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Purchases</p>
+          <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">{purchases.length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-4">
-          <p className="text-xs md:text-sm text-slate-500">Total Spent</p>
-          <p className="text-xl md:text-2xl font-bold text-green-700">${totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 md:p-4">
+          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Total Spent</p>
+          <p className="text-xl md:text-2xl font-bold text-green-700 dark:text-green-300">${totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-4">
-          <p className="text-xs md:text-sm text-slate-500">Avg/Purchase</p>
-          <p className="text-xl md:text-2xl font-bold text-slate-900">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 md:p-4">
+          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Avg/Purchase</p>
+          <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
             ${purchases.length > 0 ? (totalSpent / purchases.length).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
           </p>
         </div>
@@ -384,31 +384,31 @@ export default function PurchasesPage() {
 
       {/* Invoice scan panel */}
       {showScan && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 mb-6">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-semibold">Scan an Invoice</h2>
-            <button type="button" onClick={resetScan} className="text-sm text-slate-500 hover:text-slate-700">Cancel</button>
+            <button type="button" onClick={resetScan} className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700">Cancel</button>
           </div>
-          <p className="text-sm text-slate-500 mb-4">Pick where the items landed, upload the invoice, and let AI itemize it. Nothing is saved until you review and confirm.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Pick where the items landed, upload the invoice, and let AI itemize it. Nothing is saved until you review and confirm.</p>
 
           {scanError && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{scanError}</div>
+            <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4">{scanError}</div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Received At *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Received At *</label>
               <select
                 value={scanLocation}
                 onChange={(e) => setScanLocation(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select location</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Invoice (photo or PDF)</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Invoice (photo or PDF)</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -424,7 +424,7 @@ export default function PurchasesPage() {
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="flex items-center justify-center gap-2 border border-slate-300 text-slate-700 rounded-lg py-2.5 text-sm font-medium hover:bg-slate-50"
+                  className="flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-slate-700 dark:text-slate-300 rounded-lg py-2.5 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700/60"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -440,17 +440,17 @@ export default function PurchasesPage() {
           </div>
 
           {/* Uploaded file preview + extract trigger */}
-          {scanning && <p className="text-sm text-slate-500">Uploading…</p>}
+          {scanning && <p className="text-sm text-slate-500 dark:text-slate-400">Uploading…</p>}
           {scanUpload && !scanning && (
             <div className="flex items-center gap-4 mb-4">
               {scanUpload.isPdf ? (
-                <div className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
-                  <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7.414A2 2 0 0017.414 6L14 2.586A2 2 0 0012.586 2H4z" /></svg>
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
+                  <svg className="w-5 h-5 text-red-500 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7.414A2 2 0 0017.414 6L14 2.586A2 2 0 0012.586 2H4z" /></svg>
                   {scanUpload.name}
                 </div>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={scanUpload.url} alt="Invoice preview" className="h-24 w-auto rounded-lg border border-slate-200 object-contain" />
+                <img src={scanUpload.url} alt="Invoice preview" className="h-24 w-auto rounded-lg border border-slate-200 dark:border-slate-700 object-contain" />
               )}
               <button
                 type="button"
@@ -465,48 +465,48 @@ export default function PurchasesPage() {
 
           {/* Review table */}
           {draftLines.length > 0 && (
-            <div className="border-t border-slate-200 pt-4">
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Vendor</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Vendor</label>
                   <input type="text" value={draftVendor} onChange={(e) => setDraftVendor(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
                   <input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500 mb-2">Review each line. Match it to an existing item or leave it as “➕ New item” to create one. Uncheck anything you don’t want. Saving sets each matched item’s “Cost each” to the price shown.</p>
-              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Review each line. Match it to an existing item or leave it as “➕ New item” to create one. Uncheck anything you don’t want. Saving sets each matched item’s “Cost each” to the price shown.</p>
+              <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
                 <table className="w-full text-sm min-w-[720px]">
-                  <thead className="bg-slate-50 border-b border-slate-200">
+                  <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                     <tr>
                       <th className="px-3 py-2 w-8"></th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">From invoice</th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">Item</th>
-                      <th className="text-center px-3 py-2 font-medium text-slate-600 w-20">Qty</th>
-                      <th className="text-right px-3 py-2 font-medium text-slate-600 w-28">Unit Price</th>
-                      <th className="text-right px-3 py-2 font-medium text-slate-600 w-24">Total</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600 dark:text-slate-300">From invoice</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600 dark:text-slate-300">Item</th>
+                      <th className="text-center px-3 py-2 font-medium text-slate-600 dark:text-slate-300 w-20">Qty</th>
+                      <th className="text-right px-3 py-2 font-medium text-slate-600 dark:text-slate-300 w-28">Unit Price</th>
+                      <th className="text-right px-3 py-2 font-medium text-slate-600 dark:text-slate-300 w-24">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {draftLines.map((line, idx) => (
-                      <tr key={idx} className={`border-b border-slate-100 ${line.include ? "" : "opacity-40"}`}>
+                      <tr key={idx} className={`border-b border-slate-100 dark:border-slate-700 ${line.include ? "" : "opacity-40"}`}>
                         <td className="px-3 py-2 text-center">
                           <input type="checkbox" checked={line.include} onChange={(e) => updateLine(idx, { include: e.target.checked })} />
                         </td>
                         <td className="px-3 py-2">
-                          <div className="font-medium text-slate-900">{line.description || "—"}</div>
-                          {line.part_number && <div className="text-xs text-slate-400 font-mono">{line.part_number}</div>}
+                          <div className="font-medium text-slate-900 dark:text-slate-100">{line.description || "—"}</div>
+                          {line.part_number && <div className="text-xs text-slate-400 dark:text-slate-500 font-mono">{line.part_number}</div>}
                         </td>
                         <td className="px-3 py-2">
                           <select
                             value={line.item_id}
                             onChange={(e) => updateLine(idx, { item_id: e.target.value })}
-                            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="new">➕ New item</option>
                             {items.map((i) => (
@@ -517,14 +517,14 @@ export default function PurchasesPage() {
                         <td className="px-3 py-2">
                           <input type="number" min="1" value={line.quantity}
                             onChange={(e) => updateLine(idx, { quantity: e.target.value })}
-                            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </td>
                         <td className="px-3 py-2">
                           <input type="number" min="0" step="0.01" value={line.unit_price}
                             onChange={(e) => updateLine(idx, { unit_price: e.target.value })}
-                            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </td>
-                        <td className="px-3 py-2 text-right font-semibold text-slate-900">
+                        <td className="px-3 py-2 text-right font-semibold text-slate-900 dark:text-slate-100">
                           ${((parseInt(line.quantity) || 0) * (parseFloat(line.unit_price) || 0)).toFixed(2)}
                         </td>
                       </tr>
@@ -534,11 +534,11 @@ export default function PurchasesPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-                <p className="text-sm text-slate-600">
-                  {includedLines.length} of {draftLines.length} lines &middot; total <span className="font-semibold text-slate-900">${invoiceTotal.toFixed(2)}</span>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  {includedLines.length} of {draftLines.length} lines &middot; total <span className="font-semibold text-slate-900 dark:text-slate-100">${invoiceTotal.toFixed(2)}</span>
                 </p>
                 <div className="flex gap-2">
-                  <button type="button" onClick={resetScan} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
+                  <button type="button" onClick={resetScan} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
                   <button
                     type="button"
                     onClick={handleSaveInvoice}
@@ -555,133 +555,133 @@ export default function PurchasesPage() {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 mb-6">
           <h2 className="text-lg font-semibold mb-4">Log New Purchase</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Item *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Item *</label>
               <select required value={form.item_id} onChange={(e) => setForm({ ...form, item_id: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Select item</option>
                 {items.map((i) => <option key={i.id} value={i.id}>{i.name} {i.part_number ? `(${i.part_number})` : ""}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Received At *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Received At *</label>
               <select required value={form.location_id} onChange={(e) => setForm({ ...form, location_id: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Select location</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Quantity *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Quantity *</label>
               <input type="number" min="1" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Unit Price ($) *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Unit Price ($) *</label>
               <input type="number" min="0" step="0.01" required value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Vendor</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Vendor</label>
               <input type="text" value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g. Grainger, Amazon" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date *</label>
               <input type="date" required value={form.purchase_date} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
               <input type="text" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Optional notes" />
             </div>
           </div>
           {form.quantity && form.unit_price && (
-            <div className="mt-3 text-sm text-slate-600">
-              Total: <span className="font-semibold text-slate-900">${(parseFloat(form.quantity) * parseFloat(form.unit_price)).toFixed(2)}</span>
+            <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              Total: <span className="font-semibold text-slate-900 dark:text-slate-100">${(parseFloat(form.quantity) * parseFloat(form.unit_price)).toFixed(2)}</span>
             </div>
           )}
           <div className="flex gap-2 mt-4">
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Log Purchase</button>
-            <button type="button" onClick={() => setShowForm(false)} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
+            <button type="button" onClick={() => setShowForm(false)} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
           </div>
         </form>
       )}
 
       {/* Filter bar */}
       {!showForm && !showScan && purchases.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 mb-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 mb-4">
           <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-2 items-end">
             <input
               type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by item, vendor, location, person…"
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+              className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm" />
             <input
               type="date" value={filterFromDate} onChange={(e) => setFilterFromDate(e.target.value)}
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" title="From date" />
+              className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm" title="From date" />
             <input
               type="date" value={filterToDate} onChange={(e) => setFilterToDate(e.target.value)}
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm" title="To date" />
+              className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm" title="To date" />
           </div>
           {filtersActive && (
             <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-slate-500">Showing {filteredPurchases.length} of {purchases.length}</p>
-              <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">Clear filters</button>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Showing {filteredPurchases.length} of {purchases.length}</p>
+              <button onClick={clearFilters} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Clear filters</button>
             </div>
           )}
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Date</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Item</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Location</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600">Qty</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600">Unit Price</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600">Total</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Vendor</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Logged by</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600">Actions</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Date</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Item</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Location</th>
+              <th className="text-center px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Qty</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Unit Price</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Total</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Vendor</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Logged by</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredPurchases.map((p) => (
-              <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3 text-slate-600">{p.purchase_date}</td>
+              <tr key={p.id} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60">
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.purchase_date}</td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900">{p.item_name}</div>
-                  {p.part_number && <div className="text-xs text-slate-400 font-mono">{p.part_number}</div>}
+                  <div className="font-medium text-slate-900 dark:text-slate-100">{p.item_name}</div>
+                  {p.part_number && <div className="text-xs text-slate-400 dark:text-slate-500 font-mono">{p.part_number}</div>}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{p.location_name}</td>
-                <td className="px-4 py-3 text-center text-slate-600">{p.quantity}</td>
-                <td className="px-4 py-3 text-right text-slate-600">${p.unit_price.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-slate-900">${(p.quantity * p.unit_price).toFixed(2)}</td>
-                <td className="px-4 py-3 text-slate-600">{p.vendor || "-"}</td>
-                <td className="px-4 py-3 text-slate-500">{p.created_by_name || "—"}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.location_name}</td>
+                <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-300">{p.quantity}</td>
+                <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">${p.unit_price.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-slate-100">${(p.quantity * p.unit_price).toFixed(2)}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.vendor || "-"}</td>
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{p.created_by_name || "—"}</td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>
+                  <button onClick={() => handleDelete(p.id)} className="text-red-600 dark:text-red-400 hover:text-red-800 text-xs font-medium">Delete</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {purchases.length === 0 && (
-          <div className="text-center py-8 text-slate-400">No purchases recorded yet.</div>
+          <div className="text-center py-8 text-slate-400 dark:text-slate-500">No purchases recorded yet.</div>
         )}
         {purchases.length > 0 && filteredPurchases.length === 0 && (
-          <div className="text-center py-6 text-slate-400 text-sm">
+          <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-sm">
             No purchases match your filters.
-            <button onClick={clearFilters} className="text-blue-600 hover:underline ml-1">Clear filters</button>
+            <button onClick={clearFilters} className="text-blue-600 dark:text-blue-400 hover:underline ml-1">Clear filters</button>
           </div>
         )}
       </div>

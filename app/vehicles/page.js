@@ -59,8 +59,8 @@ export default function VehiclesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Vehicles</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Vehicles</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Fleet by location, with photos, service history, and AI help
           </p>
         </div>
@@ -76,7 +76,7 @@ export default function VehiclesPage() {
         <select
           value={locationFilter}
           onChange={(e) => setLocationFilter(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All locations</option>
           {locations.map((l) => (
@@ -90,19 +90,19 @@ export default function VehiclesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, year, make, model, VIN, plate…"
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-[16rem]"
+          className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-[16rem]"
         />
       </div>
 
       {loading ? (
-        <div className="text-slate-500">Loading…</div>
+        <div className="text-slate-500 dark:text-slate-400">Loading…</div>
       ) : vehicles.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
           <p className="text-lg">No vehicles yet</p>
           <p className="text-sm mt-1">Add your first vehicle to get started</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
           <p className="text-lg">No matching vehicles</p>
           <p className="text-sm mt-1">Try a different search or filter</p>
         </div>
@@ -117,9 +117,9 @@ export default function VehiclesPage() {
               <Link
                 key={v.id}
                 href={`/vehicles/${v.id}`}
-                className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex gap-3 hover:border-blue-300 transition-colors"
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 flex gap-3 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
               >
-                <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center text-2xl">
+                <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-2xl">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt="" className="w-full h-full object-cover" />
@@ -128,19 +128,19 @@ export default function VehiclesPage() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-slate-900 truncate">{title}</h3>
-                  {sub && sub !== title && <p className="text-xs text-slate-500 truncate">{sub}</p>}
-                  <p className="text-xs text-slate-500 truncate mt-0.5">
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">{title}</h3>
+                  {sub && sub !== title && <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{sub}</p>}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
                     {v.plate ? `${v.plate} · ` : ""}
                     {v.location_name}
                   </p>
                   {v.odometer ? (
-                    <p className="text-xs text-slate-400 truncate mt-0.5">{Number(v.odometer).toLocaleString()} mi</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5">{Number(v.odometer).toLocaleString()} mi</p>
                   ) : null}
                   {worstByVehicle[v.id] && (
                     <span
                       className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                        worstByVehicle[v.id] === "overdue" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                        worstByVehicle[v.id] === "overdue" ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
                       }`}
                     >
                       {worstByVehicle[v.id] === "overdue" ? "Service overdue" : "Service due soon"}

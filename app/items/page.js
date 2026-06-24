@@ -81,8 +81,8 @@ export default function ItemsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Items</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your fuel repair parts and supplies</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Items</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your fuel repair parts and supplies</p>
         </div>
         <button
           onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ name: "", description: "", category: "", part_number: "", unit: "each", min_quantity: 0, unit_cost: "" }); }}
@@ -93,37 +93,37 @@ export default function ItemsPage() {
       </div>
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">{error}</div>
+        <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4">{error}</div>
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 mb-6">
           <h2 className="text-lg font-semibold mb-4">{editing ? "Edit Item" : "New Item"}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Name *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name *</label>
               <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g. Fuel Filter 10 Micron" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Part Number</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Part Number</label>
               <input type="text" value={form.part_number} onChange={(e) => setForm({ ...form, part_number: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g. FF-10M-001" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Select category</option>
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Unit of Measure</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Unit of Measure</label>
               <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="each">Each</option>
                 <option value="box">Box</option>
                 <option value="case">Case</option>
@@ -135,21 +135,21 @@ export default function ItemsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Min Quantity (for alerts)</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Min Quantity (for alerts)</label>
               <input type="number" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: parseInt(e.target.value) || 0 })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Cost each ($)</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cost each ($)</label>
               <input type="number" min="0" step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00" />
-              <p className="text-[11px] text-slate-400 mt-1">Used to value on-hand inventory on the dashboard.</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Used to value on-hand inventory on the dashboard.</p>
             </div>
             <div className="md:col-span-2 lg:col-span-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
               <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Optional description" />
             </div>
           </div>
@@ -158,60 +158,60 @@ export default function ItemsPage() {
               {editing ? "Update" : "Add"} Item
             </button>
             <button type="button" onClick={() => { setShowForm(false); setEditing(null); }}
-              className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
+              className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
           </div>
         </form>
       )}
 
       <div className="flex gap-3 mb-4">
         <input type="text" placeholder="Search items..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
+          className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
         <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">All Categories</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
         <table className="w-full text-sm min-w-[600px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Name</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Part #</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Category</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Unit</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Min Qty</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600">Cost each</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600">Actions</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Name</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Part #</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Category</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Unit</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Min Qty</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Cost each</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((item) => (
-              <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
+              <tr key={item.id} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900">{item.name}</div>
-                  {item.description && <div className="text-xs text-slate-400">{item.description}</div>}
+                  <div className="font-medium text-slate-900 dark:text-slate-100">{item.name}</div>
+                  {item.description && <div className="text-xs text-slate-400 dark:text-slate-500">{item.description}</div>}
                 </td>
-                <td className="px-4 py-3 text-slate-600 font-mono">{item.part_number || "-"}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-mono">{item.part_number || "-"}</td>
                 <td className="px-4 py-3">
                   {item.category ? (
-                    <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded-full">{item.category}</span>
+                    <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full">{item.category}</span>
                   ) : "-"}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{item.unit}</td>
-                <td className="px-4 py-3 text-slate-600">{item.min_quantity || "-"}</td>
-                <td className="px-4 py-3 text-right text-slate-600">{itemUnitCost(item) > 0 ? `$${itemUnitCost(item).toFixed(2)}` : "-"}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.unit}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.min_quantity || "-"}</td>
+                <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{itemUnitCost(item) > 0 ? `$${itemUnitCost(item).toFixed(2)}` : "-"}</td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => startEdit(item)} className="text-blue-600 hover:text-blue-800 text-xs font-medium mr-3">Edit</button>
-                  <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>
+                  <button onClick={() => startEdit(item)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-xs font-medium mr-3">Edit</button>
+                  <button onClick={() => handleDelete(item.id)} className="text-red-600 dark:text-red-400 hover:text-red-800 text-xs font-medium">Delete</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="text-center py-8 text-slate-400">
+          <div className="text-center py-8 text-slate-400 dark:text-slate-500">
             {items.length === 0 ? "No items yet. Add your first item to get started." : "No items match your search."}
           </div>
         )}

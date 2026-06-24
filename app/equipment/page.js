@@ -45,8 +45,8 @@ export default function EquipmentPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Equipment</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Equipment</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Machines by location, with photos, service history, and AI help
           </p>
         </div>
@@ -62,7 +62,7 @@ export default function EquipmentPage() {
         <select
           value={locationFilter}
           onChange={(e) => setLocationFilter(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All locations</option>
           {locations.map((l) => (
@@ -76,19 +76,19 @@ export default function EquipmentPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, make, model, serial, category…"
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-[16rem]"
+          className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-[16rem]"
         />
       </div>
 
       {loading ? (
-        <div className="text-slate-500">Loading…</div>
+        <div className="text-slate-500 dark:text-slate-400">Loading…</div>
       ) : equipment.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
           <p className="text-lg">No equipment yet</p>
           <p className="text-sm mt-1">Add your first machine to get started</p>
         </div>
       ) : filteredEquipment.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
           <p className="text-lg">No matching equipment</p>
           <p className="text-sm mt-1">Try a different search or filter</p>
         </div>
@@ -102,9 +102,9 @@ export default function EquipmentPage() {
               <Link
                 key={e.id}
                 href={`/equipment/${e.id}`}
-                className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex gap-3 hover:border-blue-300 transition-colors"
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 flex gap-3 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
               >
-                <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center text-2xl">
+                <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-2xl">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt="" className="w-full h-full object-cover" />
@@ -113,13 +113,13 @@ export default function EquipmentPage() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-slate-900 truncate">{title}</h3>
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">{title}</h3>
                   {(e.make || e.model) && (
-                    <p className="text-xs text-slate-500 truncate">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {[e.make, e.model].filter(Boolean).join(" ")}
                     </p>
                   )}
-                  <p className="text-xs text-slate-500 truncate mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
                     {e.category ? `${e.category} · ` : ""}
                     {e.location_name}
                   </p>
