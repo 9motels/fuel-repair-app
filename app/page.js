@@ -5,12 +5,12 @@ import Link from "next/link";
 import { itemUnitCost } from "@/lib/itemCost";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes] = await Promise.all([
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes] = await Promise.all([
         fetch("/api/locations"),
         fetch("/api/alerts"),
         fetch("/api/purchases"),
@@ -19,6 +19,7 @@ export default function Dashboard() {
         fetch("/api/inventory"),
         fetch("/api/equipment"),
         fetch("/api/items"),
+        fetch("/api/vehicles"),
       ]);
       setData({
         locations: await locRes.json(),
@@ -29,6 +30,7 @@ export default function Dashboard() {
         inventory: await invRes.json(),
         equipment: await eqRes.json(),
         items: await itemRes.json(),
+        vehicles: await vehRes.json(),
       });
       setLoading(false);
     }
@@ -97,7 +99,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6 md:mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
           <p className="text-xs md:text-sm text-slate-500">Locations</p>
           <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{data.locations.length}</p>
@@ -118,6 +120,10 @@ export default function Dashboard() {
         <Link href="/equipment" className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5 hover:border-blue-300 transition-colors">
           <p className="text-xs md:text-sm text-slate-500">Equipment</p>
           <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{data.equipment.length}</p>
+        </Link>
+        <Link href="/vehicles" className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5 hover:border-blue-300 transition-colors">
+          <p className="text-xs md:text-sm text-slate-500">Vehicles</p>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{data.vehicles.length}</p>
         </Link>
       </div>
 
