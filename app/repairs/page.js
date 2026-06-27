@@ -16,6 +16,8 @@ export default function RepairsPage() {
   const [filterFromDate, setFilterFromDate] = useState("");
   const [filterToDate, setFilterToDate] = useState("");
   const [filterStatus, setFilterStatus] = useState("all"); // all | open | closed
+  const [filterType, setFilterType] = useState("all"); // all | fuel | equipment
+  const [repairType, setRepairType] = useState("fuel"); // fuel | equipment
 
   const [repairForm, setRepairForm] = useState({
     location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "", equipment_id: "",
@@ -27,12 +29,30 @@ export default function RepairsPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  // Open the form automatically when arriving from the dashboard "Log Repair" button (/repairs?new=1)
+  // Open the form automatically when arriving from the dashboard "Log Repair" button
+  // (/repairs?new=1&type=fuel|equipment) and preset the Fuel/Equipment toggle.
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new")) {
-      setShowForm(true);
-    }
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("new")) setShowForm(true);
+    const t = sp.get("type");
+    if (t === "equipment" || t === "fuel") setRepairType(t);
   }, []);
+
+  function chooseType(t) {
+    setRepairType(t);
+    // Clear the field that doesn't apply to the chosen type.
+    setRepairForm((f) => ({
+      ...f,
+      pump_number: t === "equipment" ? "" : f.pump_number,
+      equipment_id: t === "fuel" ? "" : f.equipment_id,
+    }));
+  }
+
+  function selectEquipment(eqId) {
+    const eq = equipment.find((e) => String(e.id) === String(eqId));
+    setRepairForm((f) => ({ ...f, equipment_id: eqId, location_id: eq ? String(eq.location_id) : f.location_id }));
+  }
 
   async function fetchAll() {
     const [rRes, iRes, lRes, invRes, eqRes] = await Promise.all([
@@ -87,21 +107,24 @@ export default function RepairsPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    if (repairType === "equipment" && !repairForm.equipment_id) { setError("Pick the equipment being repaired."); return; }
     if (repairItems.length === 0) { setError("Add at least one part below before saving"); return; }
     const res = await fetch("/api/repairs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...repairForm,
+        repair_type: repairType,
         location_id: parseInt(repairForm.location_id),
-        pump_number: repairForm.pump_number ? parseInt(repairForm.pump_number) : null,
-        equipment_id: repairForm.equipment_id ? parseInt(repairForm.equipment_id) : null,
+        pump_number: repairType === "fuel" && repairForm.pump_number ? parseInt(repairForm.pump_number) : null,
+        equipment_id: repairType === "equipment" && repairForm.equipment_id ? parseInt(repairForm.equipment_id) : null,
         created_by_id: currentPerson?.id ?? null,
         items: repairItems.map(i => ({ item_id: i.item_id, source_location_id: i.source_location_id, quantity: i.quantity, unit_cost: i.unit_cost })),
       }),
     });
     if (!res.ok) { const data = await res.json(); setError(data.error || "Failed to save repair"); return; }
     setRepairForm({ location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "", equipment_id: "" });
+    setRepairType("fuel");
     setRepairItems([]);
     setShowForm(false);
     fetchAll();
@@ -116,6 +139,7 @@ export default function RepairsPage() {
   function handleDuplicate(repair) {
     // Pre-fill the form from an existing repair so the user can save a
     // near-copy with one or two edits (e.g. new date).
+    setRepairType(repair.repair_type === "equipment" || repair.equipment_id ? "equipment" : "fuel");
     setRepairForm({
       location_id: String(repair.location_id ?? ""),
       pump_number: repair.pump_number ? String(repair.pump_number) : "",
@@ -146,6 +170,10 @@ export default function RepairsPage() {
         const st = r.status || "open";
         if (st !== filterStatus) return false;
       }
+      if (filterType !== "all") {
+        const rt = r.repair_type || (r.equipment_id ? "equipment" : "fuel");
+        if (rt !== filterType) return false;
+      }
       if (filterFromDate && r.repair_date < filterFromDate) return false;
       if (filterToDate && r.repair_date > filterToDate) return false;
       if (!q) return true;
@@ -156,12 +184,12 @@ export default function RepairsPage() {
       ].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
-  }, [repairs, searchQuery, filterFromDate, filterToDate, filterStatus]);
+  }, [repairs, searchQuery, filterFromDate, filterToDate, filterStatus, filterType]);
 
   function clearFilters() {
-    setSearchQuery(""); setFilterFromDate(""); setFilterToDate(""); setFilterStatus("all");
+    setSearchQuery(""); setFilterFromDate(""); setFilterToDate(""); setFilterStatus("all"); setFilterType("all");
   }
-  const filtersActive = searchQuery || filterFromDate || filterToDate || filterStatus !== "all";
+  const filtersActive = searchQuery || filterFromDate || filterToDate || filterStatus !== "all" || filterType !== "all";
 
   async function handleCloseAndEmail(repair) {
     if (!confirm(`Close repair #${repair.id} and email a report to the configured address? This cannot be undone.`)) return;
@@ -214,27 +242,64 @@ export default function RepairsPage() {
 
           {/* Step 1: Repair details */}
           <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-3 py-2 mb-4">
-            <p className="text-xs font-semibold text-blue-800">Step 1: Repair Info</p>
+            <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Step 1: Repair Info</p>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location *</label>
-              <select required value={repairForm.location_id} onChange={(e) => setRepairForm({ ...repairForm, location_id: e.target.value })}
-                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select</option>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Pump #</label>
-              <select value={repairForm.pump_number} onChange={(e) => setRepairForm({ ...repairForm, pump_number: e.target.value })}
-                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">N/A</option>
-                {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>Pump {n}</option>)}
-              </select>
-            </div>
+
+          {/* What are we repairing? */}
+          <div className="inline-flex rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden mb-3">
+            <button type="button" onClick={() => chooseType("fuel")}
+              className={`px-4 py-2 text-sm font-medium ${repairType === "fuel" ? "bg-blue-600 text-white" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"}`}>
+              ⛽ Fuel
+            </button>
+            <button type="button" onClick={() => chooseType("equipment")}
+              className={`px-4 py-2 text-sm font-medium border-l border-slate-300 dark:border-slate-600 ${repairType === "equipment" ? "bg-blue-600 text-white" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"}`}>
+              🛠️ Equipment
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-2">
+
+          {repairType === "fuel" ? (
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location *</label>
+                <select required value={repairForm.location_id} onChange={(e) => setRepairForm({ ...repairForm, location_id: e.target.value })}
+                  className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select</option>
+                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Pump #</label>
+                <select value={repairForm.pump_number} onChange={(e) => setRepairForm({ ...repairForm, pump_number: e.target.value })}
+                  className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">N/A</option>
+                  {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>Pump {n}</option>)}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Equipment *</label>
+                <select required value={repairForm.equipment_id} onChange={(e) => selectEquipment(e.target.value)}
+                  className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select equipment…</option>
+                  {equipment.map((eq) => (
+                    <option key={eq.id} value={eq.id}>{eq.name || [eq.make, eq.model].filter(Boolean).join(" ") || `Equipment #${eq.id}`}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location *</label>
+                <select required value={repairForm.location_id} onChange={(e) => setRepairForm({ ...repairForm, location_id: e.target.value })}
+                  className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select</option>
+                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 mb-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date *</label>
               <input type="date" required value={repairForm.repair_date} onChange={(e) => setRepairForm({ ...repairForm, repair_date: e.target.value })}
@@ -244,18 +309,8 @@ export default function RepairsPage() {
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
               <input type="text" value={repairForm.description} onChange={(e) => setRepairForm({ ...repairForm, description: e.target.value })}
                 className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Nozzle swap" />
+                placeholder={repairType === "fuel" ? "e.g. Nozzle swap" : "e.g. Compressor service"} />
             </div>
-          </div>
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Equipment (optional)</label>
-            <select value={repairForm.equipment_id} onChange={(e) => setRepairForm({ ...repairForm, equipment_id: e.target.value })}
-              className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">None</option>
-              {equipment.map((eq) => (
-                <option key={eq.id} value={eq.id}>{eq.name || [eq.make, eq.model].filter(Boolean).join(" ") || `Equipment #${eq.id}`}</option>
-              ))}
-            </select>
           </div>
 
           {/* Items already added */}
@@ -354,7 +409,7 @@ export default function RepairsPage() {
       {/* Filter bar */}
       {!showForm && repairs.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-2 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-2 items-end">
             <input
               type="text"
               value={searchQuery}
@@ -384,6 +439,16 @@ export default function RepairsPage() {
               <option value="all">All</option>
               <option value="open">Open</option>
               <option value="closed">Closed</option>
+            </select>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800"
+              title="Repair type"
+            >
+              <option value="all">Fuel + Equip</option>
+              <option value="fuel">Fuel</option>
+              <option value="equipment">Equipment</option>
             </select>
           </div>
           {filtersActive && (

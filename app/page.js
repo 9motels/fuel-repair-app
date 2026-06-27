@@ -8,6 +8,7 @@ import { reminderStatus, reminderDueLabel } from "@/lib/vehicleReminders";
 export default function Dashboard() {
   const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [] });
   const [loading, setLoading] = useState(true);
+  const [repairMenu, setRepairMenu] = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
@@ -116,12 +117,24 @@ export default function Dashboard() {
           >
             Equipment
           </Link>
-          <Link
-            href="/repairs?new=1"
-            className="bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-          >
-            + Log Repair
-          </Link>
+          <div className="relative">
+            <button
+              onClick={() => setRepairMenu((o) => !o)}
+              className="bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+            >
+              + Log Repair
+            </button>
+            {repairMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setRepairMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden">
+                  <p className="px-3 pt-2 pb-1 text-xs text-slate-500 dark:text-slate-400">What are you repairing?</p>
+                  <Link href="/repairs?new=1&type=fuel" className="block px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60">⛽ Fuel</Link>
+                  <Link href="/repairs?new=1&type=equipment" className="block px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 border-t border-slate-100 dark:border-slate-700">🛠️ Equipment</Link>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
