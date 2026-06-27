@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { reminderStatus } from "@/lib/vehicleReminders";
 
 export default function EquipmentPage() {
   const [equipment, setEquipment] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [due, setDue] = useState([]);
   const [locationFilter, setLocationFilter] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -14,7 +16,19 @@ export default function EquipmentPage() {
     fetch("/api/locations")
       .then((r) => r.json())
       .then((d) => setLocations(Array.isArray(d) ? d : []));
+    fetch("/api/equipment/service-due")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setDue(Array.isArray(d) ? d : []));
   }, []);
+
+  // Worst service status per equipment (overdue beats due-soon).
+  const worstByEquip = {};
+  due.forEach((r) => {
+    const lvl = reminderStatus(r, 0).level;
+    if (lvl !== "overdue" && lvl !== "soon") return;
+    if (worstByEquip[r.equipment_id] === "overdue") return;
+    if (lvl === "overdue" || !worstByEquip[r.equipment_id]) worstByEquip[r.equipment_id] = lvl;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +137,17 @@ export default function EquipmentPage() {
                     {e.category ? `${e.category} · ` : ""}
                     {e.location_name}
                   </p>
+                  {worstByEquip[e.id] && (
+                    <span
+                      className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        worstByEquip[e.id] === "overdue"
+                          ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
+                          : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+                      }`}
+                    >
+                      {worstByEquip[e.id] === "overdue" ? "Service overdue" : "Service due soon"}
+                    </span>
+                  )}
                 </div>
               </Link>
             );
