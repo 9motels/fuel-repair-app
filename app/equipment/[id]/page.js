@@ -5,12 +5,20 @@ import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import PhotoButtons from "@/lib/PhotoButtons";
 import { uploadFile } from "@/lib/equipmentUtils";
+import { reminderStatus, reminderDueLabel, intervalLabel } from "@/lib/vehicleReminders";
 
 const WORK_TYPES = ["Repair", "Routine", "Inspection", "Replacement", "Other"];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
+
+const STATUS_STYLE = {
+  overdue: "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-700 dark:text-red-300",
+  soon: "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-300",
+  ok: "bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900 text-green-700 dark:text-green-300",
+  none: "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400",
+};
 
 export default function EquipmentDetailPage({ params }) {
   const { id } = use(params);
@@ -27,17 +35,96 @@ export default function EquipmentDetailPage({ params }) {
   const [savingLog, setSavingLog] = useState(false);
   const [logError, setLogError] = useState("");
 
+  // reminders
+  const [reminders, setReminders] = useState([]);
+  const [plan, setPlan] = useState(null); // { intervals:[{...,_sel}], summary }
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planError, setPlanError] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [showAddRem, setShowAddRem] = useState(false);
+  const [remForm, setRemForm] = useState({ label: "", interval_months: "", notes: "" });
+
   async function load() {
-    const [res, repairsRes] = await Promise.all([
+    const [res, repairsRes, remRes] = await Promise.all([
       fetch(`/api/equipment/${id}`),
       fetch(`/api/repairs?equipment_id=${id}`),
+      fetch(`/api/equipment/${id}/reminders`),
     ]);
     const data = await res.json();
     const repairsData = repairsRes.ok ? await repairsRes.json() : [];
     if (!res.ok) setError(data.error || "Not found");
     else setEq(data);
     setRepairs(Array.isArray(repairsData) ? repairsData : []);
+    setReminders(remRes.ok ? await remRes.json() : []);
     setLoading(false);
+  }
+
+  async function suggestPlan() {
+    setPlanError("");
+    setPlanBusy(true);
+    try {
+      const res = await fetch(`/api/equipment/${id}/maintenance-plan`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not build a plan.");
+      const intervals = (Array.isArray(data.intervals) ? data.intervals : []).map((it) => ({ ...it, _sel: true }));
+      setPlan({ intervals, summary: data.summary || "" });
+      if (intervals.length === 0) setPlanError("No suggestions came back — add reminders manually below.");
+    } catch (err) {
+      setPlanError(err.message);
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  function toggleSuggestion(i) {
+    setPlan((p) => ({ ...p, intervals: p.intervals.map((it, idx) => (idx === i ? { ...it, _sel: !it._sel } : it)) }));
+  }
+
+  async function addSelectedSuggestions() {
+    const selected = (plan?.intervals || []).filter((it) => it._sel);
+    if (selected.length === 0) return;
+    setSavingPlan(true);
+    try {
+      await fetch(`/api/equipment/${id}/reminders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reminders: selected.map((s) => ({ label: s.label, interval_months: s.interval_months, notes: s.notes || "" })),
+        }),
+      });
+      setPlan(null);
+      await load();
+    } finally {
+      setSavingPlan(false);
+    }
+  }
+
+  async function addManualReminder(e) {
+    e.preventDefault();
+    if (!remForm.label.trim()) return;
+    await fetch(`/api/equipment/${id}/reminders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: remForm.label.trim(), interval_months: remForm.interval_months, notes: remForm.notes.trim() }),
+    });
+    setRemForm({ label: "", interval_months: "", notes: "" });
+    setShowAddRem(false);
+    await load();
+  }
+
+  async function markReminderDone(rid) {
+    await fetch(`/api/equipment-reminders/${rid}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ last_done_date: today() }),
+    });
+    await load();
+  }
+
+  async function deleteReminder(rid) {
+    if (!confirm("Remove this reminder?")) return;
+    await fetch(`/api/equipment-reminders/${rid}`, { method: "DELETE" });
+    await load();
   }
 
   useEffect(() => {
@@ -157,6 +244,116 @@ export default function EquipmentDetailPage({ params }) {
               </a>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Service reminders */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Service reminders</h2>
+          <button
+            onClick={suggestPlan}
+            disabled={planBusy}
+            className="text-sm border border-blue-600 text-blue-700 dark:text-blue-300 rounded-lg px-3 py-1.5 font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 disabled:opacity-50 shrink-0"
+          >
+            {planBusy ? "Looking it up…" : "✨ Look up schedule"}
+          </button>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+          AI looks up the typical service schedule for this make/model. Suggestions are estimates —
+          confirm against the unit&apos;s manual.
+        </p>
+
+        {planError && <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-3">{planError}</div>}
+
+        {plan && plan.intervals.length > 0 && (
+          <div className="border border-blue-200 dark:border-blue-900 bg-blue-50/40 dark:bg-blue-950/30 rounded-lg p-4 mb-4">
+            <ul className="space-y-2">
+              {plan.intervals.map((s, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <input type="checkbox" checked={s._sel} onChange={() => toggleSuggestion(i)} className="mt-1" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {s.label}{" "}
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{intervalLabel({ interval_months: s.interval_months })}</span>
+                    </div>
+                    {s.notes && <div className="text-xs text-slate-600 dark:text-slate-300">{s.notes}</div>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {plan.summary && <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 italic">{plan.summary}</p>}
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={addSelectedSuggestions}
+                disabled={savingPlan || !plan.intervals.some((it) => it._sel)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingPlan ? "Adding…" : `Add ${plan.intervals.filter((it) => it._sel).length} selected`}
+              </button>
+              <button onClick={() => setPlan(null)} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600">
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {reminders.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No reminders yet. Use “✨ Look up schedule” or add one below.</p>
+        ) : (
+          <ul className="space-y-2">
+            {reminders.map((r) => {
+              const s = reminderStatus(r, 0);
+              return (
+                <li key={r.id} className={`border rounded-lg p-3 ${STATUS_STYLE[s.level] || STATUS_STYLE.none}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{r.label}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{intervalLabel(r)}</div>
+                      {r.notes && <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">{r.notes}</div>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-semibold">
+                        {s.level === "overdue" ? "Overdue" : s.level === "soon" ? "Due soon" : s.level === "none" ? "—" : "OK"}
+                      </div>
+                      <div className="text-xs">{reminderDueLabel(s)}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 mt-2">
+                    <button onClick={() => markReminderDone(r.id)} className="text-xs font-medium text-blue-700 dark:text-blue-300 hover:underline">
+                      Mark done today
+                    </button>
+                    <button onClick={() => deleteReminder(r.id)} className="text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400">
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {showAddRem ? (
+          <form onSubmit={addManualReminder} className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 space-y-3 mt-4">
+            <input
+              className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Label (e.g. Replace fuel filter)"
+              value={remForm.label}
+              onChange={(e) => setRemForm({ ...remForm, label: e.target.value })}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input type="number" min="0" className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Every … months" value={remForm.interval_months} onChange={(e) => setRemForm({ ...remForm, interval_months: e.target.value })} />
+              <input className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Notes (part, spec…)" value={remForm.notes} onChange={(e) => setRemForm({ ...remForm, notes: e.target.value })} />
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Add reminder</button>
+              <button type="button" onClick={() => setShowAddRem(false)} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <button onClick={() => setShowAddRem(true)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline mt-4">
+            + Add a reminder
+          </button>
         )}
       </div>
 
