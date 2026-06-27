@@ -37,7 +37,7 @@ export async function GET(request) {
 export async function POST(request) {
   const db = await getDb();
   const body = await request.json();
-  const { location_id, pump_number, repair_date, description, notes, items, created_by_id, equipment_id } = body;
+  const { location_id, pump_number, repair_date, description, notes, items, created_by_id, equipment_id, repair_type } = body;
   if (!location_id || !repair_date || !items || items.length === 0) {
     return NextResponse.json({ error: 'location_id, repair_date, and at least one item are required' }, { status: 400 });
   }
@@ -52,7 +52,7 @@ export async function POST(request) {
       }
     }
 
-    const result = await tx.execute({ sql: 'INSERT INTO repairs (location_id, pump_number, repair_date, description, notes, created_by_id, equipment_id) VALUES (?, ?, ?, ?, ?, ?, ?)', args: [location_id, pump_number || null, repair_date, description || '', notes || '', created_by_id || null, equipment_id || null] });
+    const result = await tx.execute({ sql: 'INSERT INTO repairs (location_id, pump_number, repair_date, description, notes, created_by_id, equipment_id, repair_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', args: [location_id, pump_number || null, repair_date, description || '', notes || '', created_by_id || null, equipment_id || null, repair_type === 'equipment' ? 'equipment' : 'fuel'] });
     const repairId = Number(result.lastInsertRowid);
 
     for (const item of items) {
