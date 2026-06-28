@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { PersonProvider, PersonPicker } from "@/lib/personContext";
+import PushButton from "@/lib/PushButton";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -229,6 +230,7 @@ export default function RootLayout({ children }) {
                 <span>Lock app</span>
               </button>
             )}
+            <PushButton />
           </div>
           <PersonPicker variant="sidebar" />
         </aside>
