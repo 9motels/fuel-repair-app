@@ -80,6 +80,10 @@ export default function EquipmentDetailPage({ params }) {
     setPlan((p) => ({ ...p, intervals: p.intervals.map((it, idx) => (idx === i ? { ...it, _sel: !it._sel } : it)) }));
   }
 
+  function updateSuggestion(i, patch) {
+    setPlan((p) => ({ ...p, intervals: p.intervals.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) }));
+  }
+
   async function addSelectedSuggestions() {
     const selected = (plan?.intervals || []).filter((it) => it._sel);
     if (selected.length === 0) return;
@@ -131,6 +135,14 @@ export default function EquipmentDetailPage({ params }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Auto-pull the suggested schedule when arriving from "Add equipment" (?suggest=1).
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("suggest")) {
+      Promise.resolve().then(() => suggestPlan());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function toggleStatus() {
     setUpdating(true);
@@ -273,9 +285,15 @@ export default function EquipmentDetailPage({ params }) {
                 <li key={i} className="flex items-start gap-2">
                   <input type="checkbox" checked={s._sel} onChange={() => toggleSuggestion(i)} className="mt-1" />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      {s.label}{" "}
-                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{intervalLabel({ interval_months: s.interval_months })}</span>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100 flex flex-wrap items-center gap-1">
+                      <span>{s.label}</span>
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
+                        · every
+                        <input type="number" min="0" value={s.interval_months ?? ""}
+                          onChange={(e) => updateSuggestion(i, { interval_months: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
+                          className="w-14 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1 py-0.5 text-xs" />
+                        months
+                      </span>
                     </div>
                     {s.notes && <div className="text-xs text-slate-600 dark:text-slate-300">{s.notes}</div>}
                   </div>

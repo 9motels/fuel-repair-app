@@ -107,7 +107,7 @@ export default function NewEquipmentPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed.");
-      router.push(`/equipment/${data.id}`);
+      router.push(`/equipment/${data.id}?suggest=1`);
     } catch (err) {
       setError(err.message);
       setSaving(false);

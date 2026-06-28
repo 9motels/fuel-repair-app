@@ -115,7 +115,7 @@ export default function NewVehiclePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed.");
-      router.push(`/vehicles/${data.id}`);
+      router.push(`/vehicles/${data.id}?suggest=1`);
     } catch (err) {
       setError(err.message);
       setSaving(false);
