@@ -49,6 +49,7 @@ export default function RootLayout({ children }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState("system");
+  const [authConfigured, setAuthConfigured] = useState(false);
 
   useEffect(() => {
     const saved = (typeof window !== "undefined" && localStorage.getItem("theme")) || "system";
@@ -71,6 +72,21 @@ export default function RootLayout({ children }) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
+
+  // Whether the passcode gate is active (controls the "Lock app" button).
+  useEffect(() => {
+    fetch("/api/auth")
+      .then((r) => r.json())
+      .then((d) => setAuthConfigured(!!d.configured))
+      .catch(() => {});
+  }, []);
+
+  async function lockApp() {
+    try {
+      await fetch("/api/auth", { method: "DELETE" });
+    } catch {}
+    window.location.href = "/login";
+  }
 
   function cycleTheme() {
     const order = ["system", "light", "dark"];
@@ -109,7 +125,10 @@ export default function RootLayout({ children }) {
       {/* On mobile the document scrolls natively (no inner scroll container — that
           janks/repaint-artifacts on mobile browsers). On md+ we pin to the viewport
           and let only <main> scroll, so the sidebar stays fixed. */}
-      <body className="min-h-screen md:h-full flex flex-col md:flex-row md:overflow-hidden">
+      <body className={pathname === "/login" ? "min-h-screen" : "min-h-screen md:h-full flex flex-col md:flex-row md:overflow-hidden"}>
+        {pathname === "/login" ? (
+          children
+        ) : (
         <PersonProvider>
         {/* Mobile header */}
         <header className="md:hidden bg-slate-800 text-white flex items-center justify-between px-4 py-3 shrink-0">
@@ -198,6 +217,18 @@ export default function RootLayout({ children }) {
               {themeIcon}
               <span>{theme} mode</span>
             </button>
+            {authConfigured && (
+              <button
+                onClick={lockApp}
+                title="Lock the app on this device"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
+              >
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span>Lock app</span>
+              </button>
+            )}
           </div>
           <PersonPicker variant="sidebar" />
         </aside>
@@ -209,6 +240,7 @@ export default function RootLayout({ children }) {
           </div>
         </main>
         </PersonProvider>
+        )}
       </body>
     </html>
   );
