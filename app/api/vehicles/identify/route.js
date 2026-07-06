@@ -14,13 +14,23 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-  const { imageUrl } = await request.json();
-  if (!imageUrl || typeof imageUrl !== 'string') {
-    return NextResponse.json({ error: 'imageUrl is required.' }, { status: 400 });
+  const body = await request.json();
+  const urls = (Array.isArray(body.imageUrls) ? body.imageUrls : [body.imageUrl])
+    .filter((u) => typeof u === 'string' && u);
+  if (urls.length === 0) {
+    return NextResponse.json({ error: 'At least one image is required.' }, { status: 400 });
   }
 
   try {
     const client = getClient();
+    const content = urls.map((url) => ({ type: 'image', source: { type: 'url', url } }));
+    content.push({
+      type: 'text',
+      text:
+        urls.length > 1
+          ? 'These photos show the SAME vehicle (different angles, the VIN plate, and/or the registration). Combine what you can read across all of them — use the clearest photo for each field, and never invent a VIN.'
+          : 'Identify this vehicle from the photo.',
+    });
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 2048,
@@ -30,15 +40,7 @@ export async function POST(request) {
         effort: 'medium',
         format: { type: 'json_schema', schema: VEHICLE_EXTRACT_SCHEMA },
       },
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'url', url: imageUrl } },
-            { type: 'text', text: 'Identify this vehicle from the photo.' },
-          ],
-        },
-      ],
+      messages: [{ role: 'user', content }],
     });
 
     if (response.stop_reason === 'refusal') {
