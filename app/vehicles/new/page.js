@@ -45,21 +45,21 @@ export default function NewVehiclePage() {
     setError("");
     setIdentifying(true);
     try {
-      let url = uploaded[0];
-      if (files.length > 0) {
-        const [first, ...rest] = files;
-        url = await uploadFile(first);
-        setUploaded((u) => [...u, url]);
-        setFiles(rest);
+      const newUrls = [];
+      for (const file of files) newUrls.push(await uploadFile(file));
+      const allUrls = [...uploaded, ...newUrls];
+      if (newUrls.length) {
+        setUploaded(allUrls);
+        setFiles([]);
       }
-      if (!url) {
+      if (allUrls.length === 0) {
         setError("Add a photo first, then identify.");
         return;
       }
       const res = await fetch("/api/vehicles/identify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: url }),
+        body: JSON.stringify({ imageUrls: allUrls }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not identify the vehicle.");
