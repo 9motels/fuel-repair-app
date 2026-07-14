@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { itemUnitCost } from "@/lib/itemCost";
 import { reminderStatus, reminderDueLabel } from "@/lib/vehicleReminders";
+import { complianceStatus, complianceDueLabel } from "@/lib/compliance";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [], compliance: [] });
   const [loading, setLoading] = useState(true);
   const [repairMenu, setRepairMenu] = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes, eqDueRes] = await Promise.all([
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes, eqDueRes, compRes] = await Promise.all([
         fetch("/api/locations"),
         fetch("/api/alerts"),
         fetch("/api/purchases"),
@@ -24,6 +25,7 @@ export default function Dashboard() {
         fetch("/api/vehicles"),
         fetch("/api/vehicles/service-due"),
         fetch("/api/equipment/service-due"),
+        fetch("/api/compliance"),
       ]);
       setData({
         locations: await locRes.json(),
@@ -37,6 +39,7 @@ export default function Dashboard() {
         vehicles: await vehRes.json(),
         serviceDue: await dueRes.json(),
         equipServiceDue: await eqDueRes.json(),
+        compliance: compRes.ok ? await compRes.json() : [],
       });
       setLoading(false);
     }
@@ -89,6 +92,12 @@ export default function Dashboard() {
     .filter((r) => r.s.level === "overdue" || r.s.level === "soon")
     .sort((a, b) => (RANK[a.s.level] - RANK[b.s.level]) || (urgency(a.s) - urgency(b.s)));
   const overdueCount = serviceDue.filter((r) => r.s.level === "overdue").length;
+
+  const complianceDue = (data.compliance || [])
+    .map((t) => ({ ...t, s: complianceStatus(t) }))
+    .filter((t) => t.s.level === "overdue" || t.s.level === "soon")
+    .sort((a, b) => (a.s.daysLeft ?? 0) - (b.s.daysLeft ?? 0));
+  const complianceOverdue = complianceDue.filter((t) => t.s.level === "overdue").length;
 
   const stockByLocation = {};
   data.inventory.forEach((inv) => {
@@ -167,7 +176,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Low Stock Alerts */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
@@ -221,6 +230,37 @@ export default function Dashboard() {
                     </div>
                     <span className={`text-xs font-semibold shrink-0 ${r.s.level === "overdue" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
                       {r.s.level === "overdue" ? "Overdue" : "Due soon"} · {reminderDueLabel(r.s)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Compliance Due */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900 dark:text-slate-100">Compliance Due</h2>
+            {complianceDue.length > 0 && (
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${complianceOverdue > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"}`}>
+                {complianceDue.length}
+              </span>
+            )}
+          </div>
+          <div className="p-4">
+            {complianceDue.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-4">Nothing due — you&apos;re current</p>
+            ) : (
+              <div className="space-y-3">
+                {complianceDue.slice(0, 8).map((t) => (
+                  <Link key={t.id} href="/compliance" className="flex items-center justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 -mx-1 px-1 rounded">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{t.label}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{t.location_name || "—"}</p>
+                    </div>
+                    <span className={`text-xs font-semibold shrink-0 ${t.s.level === "overdue" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+                      {t.s.level === "overdue" ? "Overdue" : "Due soon"} · {complianceDueLabel(t.s)}
                     </span>
                   </Link>
                 ))}
