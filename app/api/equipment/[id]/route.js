@@ -29,11 +29,23 @@ export async function GET(request, { params }) {
     })
   ).rows.map((l) => ({ ...l, photo_urls: safeParse(l.photo_urls, []) }));
 
+  const documents = (
+    await db.execute({
+      sql: `SELECT d.*, p.name as uploaded_by_name
+            FROM equipment_documents d
+            LEFT JOIN people p ON d.uploaded_by_id = p.id
+            WHERE d.equipment_id = ?
+            ORDER BY d.created_at DESC`,
+      args: [id],
+    })
+  ).rows;
+
   return NextResponse.json({
     ...eq,
     photo_urls: safeParse(eq.photo_urls, []),
     ai_extracted: safeParse(eq.ai_extracted, null),
     logs,
+    documents,
   });
 }
 
@@ -44,7 +56,7 @@ export async function PATCH(request, { params }) {
 
   const fields = [];
   const args = [];
-  for (const key of ['name', 'category', 'make', 'model', 'serial', 'description', 'status', 'location_id']) {
+  for (const key of ['name', 'category', 'make', 'model', 'serial', 'description', 'status', 'location_id', 'warranty_provider', 'warranty_expires', 'warranty_notes']) {
     if (key in body) {
       fields.push(`${key} = ?`);
       args.push(body[key]);

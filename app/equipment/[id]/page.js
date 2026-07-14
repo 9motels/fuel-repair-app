@@ -20,6 +20,31 @@ const STATUS_STYLE = {
   none: "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400",
 };
 
+const KIND_LABEL = { manual: "Manual", warranty: "Warranty", receipt: "Receipt", other: "Doc" };
+const KIND_STYLE = {
+  manual: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
+  warranty: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
+  receipt: "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300",
+  other: "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300",
+};
+
+function fmtSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n <= 0) return "";
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Warranty expiry vs today -> { date, days, level } where level is expired/soon/ok.
+function warrantyStatus(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return null;
+  const days = Math.round((d.getTime() - Date.now()) / 86400000);
+  const level = days < 0 ? "expired" : days <= 60 ? "soon" : "ok";
+  return { date: dateStr, days, level };
+}
+
 export default function EquipmentDetailPage({ params }) {
   const { id } = use(params);
   const { currentPerson } = usePerson();
@@ -33,6 +58,18 @@ export default function EquipmentDetailPage({ params }) {
   const [renaming, setRenaming] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
+
+  // documents (manuals / warranty PDFs)
+  const [docFile, setDocFile] = useState(null);
+  const [docName, setDocName] = useState("");
+  const [docKind, setDocKind] = useState("manual");
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docError, setDocError] = useState("");
+
+  // warranty
+  const [editWarranty, setEditWarranty] = useState(false);
+  const [warranty, setWarranty] = useState({ warranty_provider: "", warranty_expires: "", warranty_notes: "" });
+  const [savingWarranty, setSavingWarranty] = useState(false);
 
   // add-log form
   const [log, setLog] = useState({ work_type: "", notes: "", performed_at: today() });
@@ -181,6 +218,73 @@ export default function EquipmentDetailPage({ params }) {
     }
   }
 
+  async function uploadDocument(e) {
+    e.preventDefault();
+    setDocError("");
+    if (!docFile) {
+      setDocError("Choose a file first.");
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      const url = await uploadFile(docFile);
+      const res = await fetch(`/api/equipment/${id}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: docName.trim() || docFile.name,
+          url,
+          kind: docKind,
+          content_type: docFile.type || "",
+          size: docFile.size || 0,
+          uploaded_by_id: currentPerson?.id || null,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || "Could not save the document.");
+      }
+      setDocFile(null);
+      setDocName("");
+      setDocKind("manual");
+      await load();
+    } catch (err) {
+      setDocError(err.message || "Upload failed.");
+    } finally {
+      setUploadingDoc(false);
+    }
+  }
+
+  async function deleteDocument(docId) {
+    if (!confirm("Remove this document?")) return;
+    await fetch(`/api/equipment/documents/${docId}`, { method: "DELETE" });
+    await load();
+  }
+
+  function startEditWarranty() {
+    setWarranty({
+      warranty_provider: eq.warranty_provider || "",
+      warranty_expires: eq.warranty_expires || "",
+      warranty_notes: eq.warranty_notes || "",
+    });
+    setEditWarranty(true);
+  }
+
+  async function saveWarranty() {
+    setSavingWarranty(true);
+    try {
+      await fetch(`/api/equipment/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(warranty),
+      });
+      setEditWarranty(false);
+      await load();
+    } finally {
+      setSavingWarranty(false);
+    }
+  }
+
   async function addLog(e) {
     e.preventDefault();
     setLogError("");
@@ -219,6 +323,11 @@ export default function EquipmentDetailPage({ params }) {
   const title = eq.name || [eq.make, eq.model].filter(Boolean).join(" ") || "Equipment";
   const photos = Array.isArray(eq.photo_urls) ? eq.photo_urls : [];
   const logs = eq.logs || [];
+  const documents = Array.isArray(eq.documents) ? eq.documents : [];
+  const warrantyExpiry = warrantyStatus(eq.warranty_expires);
+  const hasWarranty = eq.warranty_provider || eq.warranty_expires || eq.warranty_notes;
+  const fieldClass =
+    "w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
     <div className="max-w-3xl space-y-5">
@@ -324,6 +433,119 @@ export default function EquipmentDetailPage({ params }) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Warranty */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Warranty</h2>
+          {!editWarranty && (
+            <button onClick={startEditWarranty} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0">
+              {hasWarranty ? "Edit" : "+ Add warranty"}
+            </button>
+          )}
+        </div>
+        {editWarranty ? (
+          <div className="space-y-3 mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Provider / plan</label>
+                <input className={fieldClass} placeholder="e.g. True — 5-yr compressor" value={warranty.warranty_provider} onChange={(e) => setWarranty({ ...warranty, warranty_provider: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Expires</label>
+                <input type="date" className={fieldClass} value={warranty.warranty_expires || ""} onChange={(e) => setWarranty({ ...warranty, warranty_expires: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label>
+              <input className={fieldClass} placeholder="Coverage, claim phone, terms…" value={warranty.warranty_notes} onChange={(e) => setWarranty({ ...warranty, warranty_notes: e.target.value })} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveWarranty} disabled={savingWarranty} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+                {savingWarranty ? "Saving…" : "Save"}
+              </button>
+              <button onClick={() => setEditWarranty(false)} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : hasWarranty ? (
+          <div className="text-sm text-slate-700 dark:text-slate-300 space-y-1 mt-2">
+            {eq.warranty_provider && (
+              <div><span className="text-slate-500 dark:text-slate-400">Provider:</span> {eq.warranty_provider}</div>
+            )}
+            {warrantyExpiry && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span><span className="text-slate-500 dark:text-slate-400">Expires:</span> {warrantyExpiry.date}</span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${warrantyExpiry.level === "expired" ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" : warrantyExpiry.level === "soon" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" : "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"}`}>
+                  {warrantyExpiry.level === "expired" ? "Expired" : warrantyExpiry.level === "soon" ? `${warrantyExpiry.days} days left` : "Active"}
+                </span>
+              </div>
+            )}
+            {eq.warranty_notes && <div className="text-slate-600 dark:text-slate-300">{eq.warranty_notes}</div>}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">No warranty recorded.</p>
+        )}
+      </div>
+
+      {/* Manuals & documents */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Manuals &amp; documents</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 mb-3">
+          Attach the owner&apos;s/service manual, spec sheets, or warranty paperwork (PDF or image).
+          Manuals get fed to the AI troubleshooter so it can cite the real procedures and part numbers.
+        </p>
+
+        {documents.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No documents yet.</p>
+        ) : (
+          <ul className="space-y-2 mb-4">
+            {documents.map((d) => (
+              <li key={d.id} className="flex items-center gap-3 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${KIND_STYLE[d.kind] || KIND_STYLE.other}`}>
+                  {KIND_LABEL[d.kind] || "Doc"}
+                </span>
+                <a href={d.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate flex-1 min-w-0">
+                  {d.name}
+                </a>
+                {fmtSize(d.size) && <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{fmtSize(d.size)}</span>}
+                <button onClick={() => deleteDocument(d.id)} className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 shrink-0">
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form onSubmit={uploadDocument} className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">File (PDF or image)</label>
+              <input
+                type="file"
+                accept="application/pdf,image/*"
+                onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Type</label>
+              <select value={docKind} onChange={(e) => setDocKind(e.target.value)} className={fieldClass}>
+                <option value="manual">Manual</option>
+                <option value="warranty">Warranty</option>
+                <option value="receipt">Receipt</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <input className={fieldClass} placeholder="Label (optional — defaults to the file name)" value={docName} onChange={(e) => setDocName(e.target.value)} />
+          {docError && <div className="text-sm text-red-600 dark:text-red-400">{docError}</div>}
+          <button type="submit" disabled={uploadingDoc || !docFile} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+            {uploadingDoc ? "Uploading…" : "Add document"}
+          </button>
+        </form>
       </div>
 
       {/* Service reminders */}
