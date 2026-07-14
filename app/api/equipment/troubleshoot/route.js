@@ -38,6 +38,7 @@ export async function POST(request) {
   let equipment = body.equipment;
   let logs = body.logs;
   let repairs = body.repairs;
+  let manuals = []; // [{ name, url }] attached to the machine
   if (body.equipmentId) {
     const eq = (
       await db.execute({
@@ -88,7 +89,34 @@ export async function POST(request) {
         ).rows.map((i) => ({ item_name: i.item_name, quantity: i.quantity }));
         repairs.push({ repair_date: r.repair_date, description: r.description, items });
       }
+      // Attach up to 3 manual PDFs so the model can cite the actual procedures.
+      manuals = (
+        await db.execute({
+          sql: `SELECT name, url, content_type FROM equipment_documents
+                WHERE equipment_id = ? AND kind = 'manual'
+                ORDER BY created_at DESC LIMIT 3`,
+          args: [body.equipmentId],
+        })
+      ).rows
+        .filter((d) => /\.pdf($|\?)/i.test(d.url) || d.content_type === 'application/pdf')
+        .map((d) => ({ name: d.name, url: d.url }));
     }
+  }
+
+  // Inject the manual PDFs as document blocks on the first user turn so the
+  // model reads them alongside the question. (Re-sent each turn since the API
+  // is stateless — kept to the first turn and capped to hold cost/latency down.)
+  if (manuals.length && messages.length) {
+    const first = messages[0];
+    const baseContent = Array.isArray(first.content)
+      ? first.content
+      : [{ type: 'text', text: String(first.content || '') }];
+    const docBlocks = manuals.map((m) => ({
+      type: 'document',
+      source: { type: 'url', url: m.url },
+      title: m.name,
+    }));
+    messages[0] = { ...first, content: [...docBlocks, ...baseContent] };
   }
 
   // Persist the incoming user message (and set the conversation title on first use).
@@ -130,7 +158,7 @@ export async function POST(request) {
           model: MODEL,
           max_tokens: 4096,
           thinking: { type: 'adaptive' },
-          system: buildTroubleshootSystem(equipment, logs, repairs),
+          system: buildTroubleshootSystem(equipment, logs, repairs, manuals.map((m) => m.name)),
           messages,
         });
         s.on('text', (delta) => {
