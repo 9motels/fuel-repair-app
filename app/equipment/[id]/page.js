@@ -29,6 +29,11 @@ export default function EquipmentDetailPage({ params }) {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
 
+  // rename
+  const [renaming, setRenaming] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
   // add-log form
   const [log, setLog] = useState({ work_type: "", notes: "", performed_at: today() });
   const [logFiles, setLogFiles] = useState([]);
@@ -156,6 +161,26 @@ export default function EquipmentDetailPage({ params }) {
     setUpdating(false);
   }
 
+  function startRename() {
+    setNameInput(eq.name || "");
+    setRenaming(true);
+  }
+
+  async function saveName() {
+    setSavingName(true);
+    try {
+      await fetch(`/api/equipment/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nameInput.trim() }),
+      });
+      setRenaming(false);
+      await load();
+    } finally {
+      setSavingName(false);
+    }
+  }
+
   async function addLog(e) {
     e.preventDefault();
     setLogError("");
@@ -204,24 +229,66 @@ export default function EquipmentDetailPage({ params }) {
       {/* Header / info */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              {title}
-              {eq.status === "retired" && (
-                <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">
-                  Retired
-                </span>
-              )}
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{eq.location_name}</p>
+          <div className="min-w-0 flex-1">
+            {renaming ? (
+              <div className="flex flex-col gap-2">
+                <input
+                  autoFocus
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveName();
+                    if (e.key === "Escape") setRenaming(false);
+                  }}
+                  placeholder={[eq.make, eq.model].filter(Boolean).join(" ") || "Equipment name"}
+                  className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={saveName}
+                    disabled={savingName}
+                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {savingName ? "Saving…" : "Save name"}
+                  </button>
+                  <button onClick={() => setRenaming(false)} className="text-sm text-slate-500 dark:text-slate-400 hover:underline">
+                    Cancel
+                  </button>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">Leave blank to use make/model</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span className="min-w-0 truncate">{title}</span>
+                  {eq.status === "retired" && (
+                    <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-medium uppercase tracking-wide shrink-0">
+                      Retired
+                    </span>
+                  )}
+                  <button
+                    onClick={startRename}
+                    title="Rename"
+                    className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{eq.location_name}</p>
+              </>
+            )}
           </div>
-          <button
-            onClick={toggleStatus}
-            disabled={updating}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0 disabled:opacity-60"
-          >
-            {eq.status === "retired" ? "Reactivate" : "Retire"}
-          </button>
+          {!renaming && (
+            <button
+              onClick={toggleStatus}
+              disabled={updating}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0 disabled:opacity-60"
+            >
+              {eq.status === "retired" ? "Reactivate" : "Retire"}
+            </button>
+          )}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           {eq.category && (
