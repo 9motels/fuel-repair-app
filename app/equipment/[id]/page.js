@@ -71,6 +71,19 @@ export default function EquipmentDetailPage({ params }) {
   const [warranty, setWarranty] = useState({ warranty_provider: "", warranty_expires: "", warranty_notes: "" });
   const [savingWarranty, setSavingWarranty] = useState(false);
 
+  // online manual search
+  const [manualResults, setManualResults] = useState(null); // null = not run, [] = none found
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualError, setManualError] = useState("");
+  const [addingUrl, setAddingUrl] = useState("");
+
+  // parts finder
+  const [partQuery, setPartQuery] = useState("");
+  const [partResults, setPartResults] = useState(null);
+  const [partsNote, setPartsNote] = useState("");
+  const [partsBusy, setPartsBusy] = useState(false);
+  const [partsError, setPartsError] = useState("");
+
   // add-log form
   const [log, setLog] = useState({ work_type: "", notes: "", performed_at: today() });
   const [logFiles, setLogFiles] = useState([]);
@@ -178,10 +191,14 @@ export default function EquipmentDetailPage({ params }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Auto-pull the suggested schedule when arriving from "Add equipment" (?suggest=1).
+  // Auto-pull the suggested schedule + search for manuals when arriving from
+  // "Add equipment" (?suggest=1).
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("suggest")) {
-      Promise.resolve().then(() => suggestPlan());
+      Promise.resolve().then(() => {
+        suggestPlan();
+        findManuals();
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -282,6 +299,69 @@ export default function EquipmentDetailPage({ params }) {
       await load();
     } finally {
       setSavingWarranty(false);
+    }
+  }
+
+  async function findManuals() {
+    setManualError("");
+    setManualBusy(true);
+    try {
+      const res = await fetch(`/api/equipment/${id}/find-manuals`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Manual search failed.");
+      setManualResults(Array.isArray(data.manuals) ? data.manuals : []);
+    } catch (err) {
+      setManualError(err.message);
+      setManualResults([]);
+    } finally {
+      setManualBusy(false);
+    }
+  }
+
+  async function saveFoundManual(m) {
+    setAddingUrl(m.url);
+    try {
+      const kind = ["owner", "service", "parts"].includes(m.type) ? "manual" : "other";
+      await fetch(`/api/equipment/${id}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: m.title || `${m.type} manual`,
+          url: m.url,
+          kind,
+          content_type: /\.pdf($|\?)/i.test(m.url) ? "application/pdf" : "",
+          uploaded_by_id: currentPerson?.id || null,
+        }),
+      });
+      setManualResults((r) => (r || []).filter((x) => x.url !== m.url));
+      await load();
+    } finally {
+      setAddingUrl("");
+    }
+  }
+
+  async function findParts(e) {
+    e.preventDefault();
+    const q = partQuery.trim();
+    if (!q) return;
+    setPartsError("");
+    setPartsNote("");
+    setPartsBusy(true);
+    try {
+      const res = await fetch(`/api/equipment/${id}/find-parts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Parts search failed.");
+      setPartResults(Array.isArray(data.parts) ? data.parts : []);
+      setPartsNote(data.note || "");
+    } catch (err) {
+      setPartsError(err.message);
+      setPartResults([]);
+    } finally {
+      setPartsBusy(false);
     }
   }
 
@@ -498,6 +578,47 @@ export default function EquipmentDetailPage({ params }) {
           Manuals get fed to the AI troubleshooter so it can cite the real procedures and part numbers.
         </p>
 
+        {/* AI web search for manuals */}
+        <div className="mb-4">
+          <button
+            onClick={findManuals}
+            disabled={manualBusy}
+            className="text-sm border border-blue-600 text-blue-700 dark:text-blue-300 rounded-lg px-3 py-1.5 font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 disabled:opacity-50"
+          >
+            {manualBusy ? "Searching the web…" : "🔎 Find manuals online"}
+          </button>
+          {manualError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{manualError}</p>}
+          {manualResults && manualResults.length === 0 && !manualBusy && !manualError && (
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">No manuals found online — try attaching one below.</p>
+          )}
+          {manualResults && manualResults.length > 0 && (
+            <ul className="space-y-2 mt-3">
+              {manualResults.map((m, i) => (
+                <li key={i} className="border border-blue-200 dark:border-blue-900 bg-blue-50/40 dark:bg-blue-950/30 rounded-lg p-3 flex items-start gap-3">
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${KIND_STYLE[["owner", "service", "parts"].includes(m.type) ? "manual" : "other"]}`}>
+                    {m.type}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <a href={m.url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline break-words">
+                      {m.title || m.url}
+                    </a>
+                    {(m.source || m.note) && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{[m.source, m.note].filter(Boolean).join(" · ")}</div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => saveFoundManual(m)}
+                    disabled={addingUrl === m.url}
+                    className="text-xs font-medium text-blue-700 dark:text-blue-300 hover:underline shrink-0 disabled:opacity-50"
+                  >
+                    {addingUrl === m.url ? "Saving…" : "Save"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {documents.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No documents yet.</p>
         ) : (
@@ -546,6 +667,56 @@ export default function EquipmentDetailPage({ params }) {
             {uploadingDoc ? "Uploading…" : "Add document"}
           </button>
         </form>
+      </div>
+
+      {/* Find parts online */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Find parts</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 mb-3">
+          Describe the part you need — AI searches the web for the right part for this make/model and gives you direct links to buy it.
+        </p>
+        <form onSubmit={findParts} className="flex gap-2 mb-3">
+          <input
+            value={partQuery}
+            onChange={(e) => setPartQuery(e.target.value)}
+            placeholder="e.g. door gasket, igniter, compressor start relay"
+            className={fieldClass}
+          />
+          <button
+            type="submit"
+            disabled={partsBusy || !partQuery.trim()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shrink-0"
+          >
+            {partsBusy ? "Searching…" : "Find"}
+          </button>
+        </form>
+        {partsError && <p className="text-sm text-red-600 dark:text-red-400">{partsError}</p>}
+        {partResults && partResults.length === 0 && !partsBusy && !partsError && (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No confident match found — try describing the part differently.</p>
+        )}
+        {partResults && partResults.length > 0 && (
+          <ul className="space-y-2">
+            {partResults.map((p, i) => (
+              <li key={i} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <a href={p.url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline break-words">
+                      {p.name || p.url}
+                    </a>
+                    {(p.part_number || p.vendor) && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {[p.part_number && `#${p.part_number}`, p.vendor].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
+                    {p.fits_note && <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">{p.fits_note}</div>}
+                  </div>
+                  {p.price && <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 shrink-0">{p.price}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {partsNote && <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 italic">{partsNote}</p>}
       </div>
 
       {/* Service reminders */}
