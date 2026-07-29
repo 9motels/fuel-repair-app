@@ -38,7 +38,7 @@ export async function POST(request, { params }) {
     `Return up to 6 parts, best match first. Use {"parts":[],"note":"..."} if you can't find a confident match.`;
 
   try {
-    const data = await webSearchJson({ system, prompt, maxUses: 4 });
+    const data = await webSearchJson({ system, prompt, maxUses: 3 });
     const parts = (Array.isArray(data.parts) ? data.parts : [])
       .filter((p) => p && typeof p.url === 'string' && /^https?:\/\//i.test(p.url))
       .slice(0, 6)
