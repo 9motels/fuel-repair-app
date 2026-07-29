@@ -39,7 +39,7 @@ export async function POST(request, { params }) {
     `Include only results you actually found. Return {"manuals":[]} if nothing solid turns up.`;
 
   try {
-    const data = await webSearchJson({ system, prompt, maxUses: 6 });
+    const data = await webSearchJson({ system, prompt, maxUses: 4 });
     const manuals = (Array.isArray(data.manuals) ? data.manuals : [])
       .filter((m) => m && typeof m.url === 'string' && /^https?:\/\//i.test(m.url))
       .slice(0, 12)
