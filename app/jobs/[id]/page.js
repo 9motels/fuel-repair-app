@@ -1,0 +1,213 @@
+"use client";
+
+import { useEffect, useState, use } from "react";
+import Link from "next/link";
+import { usePerson } from "@/lib/personContext";
+import { JOB_STATUSES, JOB_PRIORITIES, STATUS_LABEL, PRIORITY_LABEL } from "@/lib/jobsAi";
+
+const fieldClass =
+  "w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+const KINDS = [
+  ["work", "Work"],
+  ["troubleshoot", "Troubleshoot"],
+  ["remote", "Remote support"],
+  ["research", "Research"],
+  ["contractor", "Contractor coord."],
+];
+const KIND_LABEL = Object.fromEntries(KINDS);
+
+function fmtMins(m, est) {
+  const n = Number(m) || 0;
+  if (n <= 0) return "";
+  const h = Math.floor(n / 60);
+  const r = n % 60;
+  const s = h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`;
+  return est ? `~${s}` : s;
+}
+
+export default function JobDetailPage({ params }) {
+  const { id } = use(params);
+  const { currentPerson } = usePerson();
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [savingField, setSavingField] = useState(false);
+
+  const [form, setForm] = useState({
+    kind: "work", work_performed: "", minutes: "", minutes_estimated: false,
+    cost: "", cost_unknown: true, cost_note: "", follow_up: "", status: "",
+  });
+  const [savingUpdate, setSavingUpdate] = useState(false);
+
+  async function load() {
+    const res = await fetch(`/api/jobs/${id}`);
+    const data = await res.json();
+    if (!res.ok) setError(data.error || "Not found");
+    else setJob(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function patch(patchObj) {
+    setSavingField(true);
+    await fetch(`/api/jobs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patchObj),
+    });
+    await load();
+    setSavingField(false);
+  }
+
+  async function addUpdate(e) {
+    e.preventDefault();
+    setSavingUpdate(true);
+    await fetch(`/api/jobs/${id}/updates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: form.kind,
+        work_performed: form.work_performed.trim(),
+        minutes: form.minutes === "" ? null : form.minutes,
+        minutes_estimated: form.minutes_estimated,
+        cost: form.cost_unknown ? null : form.cost === "" ? null : form.cost,
+        cost_note: form.cost_note.trim(),
+        follow_up: form.follow_up.trim(),
+        status: form.status || undefined,
+        person_id: currentPerson?.id || null,
+      }),
+    });
+    setForm({ kind: "work", work_performed: "", minutes: "", minutes_estimated: false, cost: "", cost_unknown: true, cost_note: "", follow_up: "", status: "" });
+    await load();
+    setSavingUpdate(false);
+  }
+
+  if (loading) return <div className="text-slate-500 dark:text-slate-400">Loading…</div>;
+  if (error) return <div className="text-red-600 dark:text-red-400">{error}</div>;
+  if (!job) return <div className="text-slate-500 dark:text-slate-400">Not found.</div>;
+
+  const eqName = job.equipment_name || [job.equipment_make, job.equipment_model].filter(Boolean).join(" ");
+  const updates = job.updates || [];
+  const totalMin = updates.reduce((s, u) => s + (Number(u.minutes) || 0), 0);
+  const totalCash = updates.reduce((s, u) => s + (Number(u.cost) || 0), 0);
+  const anyUnknownCost = updates.some((u) => u.cost === null || u.cost === undefined);
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      <Link href="/jobs" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">← Back to Jobs</Link>
+
+      {/* Header */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{job.title}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          {[job.location_name, eqName].filter(Boolean).join(" · ") || "No station set"}
+          {eqName && job.equipment_id ? (
+            <> · <Link href={`/equipment/${job.equipment_id}`} className="text-blue-600 dark:text-blue-400 hover:underline">equipment history</Link></>
+          ) : null}
+        </p>
+        {job.problem && <p className="text-sm text-slate-700 dark:text-slate-300 mt-3">{job.problem}</p>}
+
+        <div className="flex flex-wrap items-end gap-3 mt-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Status</label>
+            <select value={job.status} onChange={(e) => patch({ status: e.target.value })} disabled={savingField}
+              className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm">
+              {JOB_STATUSES.map((s) => (<option key={s} value={s}>{STATUS_LABEL[s]}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Priority</label>
+            <select value={job.priority} onChange={(e) => patch({ priority: e.target.value })} disabled={savingField}
+              className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm">
+              {JOB_PRIORITIES.map((p) => (<option key={p} value={p}>{PRIORITY_LABEL[p]}</option>))}
+            </select>
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 pb-2">
+            {fmtMins(totalMin) && <span>{fmtMins(totalMin)} logged</span>}
+            {totalCash > 0 && <span>{fmtMins(totalMin) ? " · " : ""}${totalCash.toFixed(2)} cash{anyUnknownCost ? "+" : ""}</span>}
+          </div>
+        </div>
+        {job.next_action && (
+          <p className="text-sm text-slate-700 dark:text-slate-300 mt-3">
+            <span className="text-slate-500 dark:text-slate-400">Next:</span> {job.next_action}
+          </p>
+        )}
+      </div>
+
+      {/* Add update */}
+      <form onSubmit={addUpdate} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 space-y-3">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Log work</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Type</label>
+            <select className={fieldClass} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+              {KINDS.map(([k, l]) => (<option key={k} value={k}>{l}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Set status (optional)</label>
+            <select className={fieldClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option value="">— no change —</option>
+              {JOB_STATUSES.map((s) => (<option key={s} value={s}>{STATUS_LABEL[s]}</option>))}
+            </select>
+          </div>
+        </div>
+        <textarea rows={2} className={fieldClass} placeholder="What did you do?" value={form.work_performed} onChange={(e) => setForm({ ...form, work_performed: e.target.value })} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Time (min)</label>
+            <input type="number" min="0" className={fieldClass} placeholder="unknown" value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} />
+            <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <input type="checkbox" checked={form.minutes_estimated} onChange={(e) => setForm({ ...form, minutes_estimated: e.target.checked })} /> estimated
+            </label>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Cash cost ($)</label>
+            <input type="number" min="0" step="0.01" className={fieldClass} placeholder="unknown" disabled={form.cost_unknown} value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
+            <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <input type="checkbox" checked={form.cost_unknown} onChange={(e) => setForm({ ...form, cost_unknown: e.target.checked })} /> unknown
+            </label>
+          </div>
+        </div>
+        <input className={fieldClass} placeholder="Next action / follow-up (optional)" value={form.follow_up} onChange={(e) => setForm({ ...form, follow_up: e.target.value })} />
+        <button type="submit" disabled={savingUpdate} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+          {savingUpdate ? "Saving…" : "Add update"}
+        </button>
+      </form>
+
+      {/* History */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">History</h2>
+        {updates.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No updates yet.</p>
+        ) : (
+          <ul className="space-y-4">
+            {updates.map((u) => (
+              <li key={u.id} className="border-l-2 border-slate-200 dark:border-slate-700 pl-3">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {String(u.created_at).slice(0, 16).replace("T", " ")}
+                  {` · ${KIND_LABEL[u.kind] || u.kind}`}
+                  {u.person_name ? ` · ${u.person_name}` : ""}
+                  {fmtMins(u.minutes, u.minutes_estimated) ? ` · ${fmtMins(u.minutes, u.minutes_estimated)}` : ""}
+                  {u.cost !== null && u.cost !== undefined ? ` · $${Number(u.cost).toFixed(2)}` : ""}
+                  {u.status_after ? ` · → ${STATUS_LABEL[u.status_after] || u.status_after}` : ""}
+                </div>
+                {u.work_performed && <p className="text-sm text-slate-800 dark:text-slate-200 mt-0.5 whitespace-pre-wrap">{u.work_performed}</p>}
+                {u.cost_note && <p className="text-xs text-slate-500 dark:text-slate-400">{u.cost_note}</p>}
+                {u.follow_up && <p className="text-xs text-slate-500 dark:text-slate-400">Next: {u.follow_up}</p>}
+                {u.raw_text && u.raw_text !== u.work_performed && (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 italic">original: “{u.raw_text}”</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
