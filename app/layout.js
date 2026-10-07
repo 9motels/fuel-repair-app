@@ -20,6 +20,8 @@ const geistMono = Geist_Mono({
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" },
+  { href: "/capture", label: "Capture", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
+  { href: "/jobs", label: "Jobs", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-7 4h8m-8 4h5" },
   { href: "/search", label: "Search", icon: "M21 21l-5.2-5.2M17 10a7 7 0 11-14 0 7 7 0 0114 0z" },
   { href: "/inventory", label: "Inventory", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
   { href: "/count", label: "Count", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
@@ -139,6 +141,16 @@ export default function RootLayout({ children }) {
             <h1 className="text-base font-bold">23 Fuels Maintenance App</h1>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/capture"
+              className="flex items-center gap-1 bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700"
+              title="Quick capture"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Capture
+            </Link>
             <PersonPicker variant="header" />
             <button onClick={cycleTheme} title={`Theme: ${theme}`} className="p-2 rounded-lg hover:bg-slate-700 text-white">
               {themeIcon}
