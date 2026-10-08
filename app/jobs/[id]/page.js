@@ -40,18 +40,77 @@ export default function JobDetailPage({ params }) {
   });
   const [savingUpdate, setSavingUpdate] = useState(false);
 
+  // edit + repairs
+  const [locations, setLocations] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [candidates, setCandidates] = useState([]);
+  const [linkId, setLinkId] = useState("");
+
+  async function loadCandidates(data) {
+    if (!data) return;
+    const qs = data.equipment_id ? `?equipment_id=${data.equipment_id}` : data.location_id ? `?location_id=${data.location_id}` : "";
+    if (!qs) { setCandidates([]); return; }
+    const res = await fetch(`/api/repairs${qs}`);
+    const rows = res.ok ? await res.json() : [];
+    setCandidates(rows.filter((r) => !r.job_id));
+  }
+
   async function load() {
     const res = await fetch(`/api/jobs/${id}`);
     const data = await res.json();
-    if (!res.ok) setError(data.error || "Not found");
-    else setJob(data);
+    if (!res.ok) { setError(data.error || "Not found"); setLoading(false); return; }
+    setJob(data);
     setLoading(false);
+    loadCandidates(data);
   }
 
   useEffect(() => {
     load();
+    fetch("/api/locations").then((r) => r.json()).then((d) => setLocations(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/equipment").then((r) => (r.ok ? r.json() : [])).then((d) => setEquipment(Array.isArray(d) ? d : [])).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  function startEdit() {
+    setEdit({
+      title: job.title || "", problem: job.problem || "", next_action: job.next_action || "",
+      location_id: job.location_id || "", equipment_id: job.equipment_id || "",
+      scheduled_date: job.scheduled_date || "", due_date: job.due_date || "",
+    });
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    await fetch(`/api/jobs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    });
+    setEditing(false);
+    await load();
+  }
+
+  async function linkRepair() {
+    if (!linkId) return;
+    await fetch(`/api/repairs/${linkId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: Number(id) }),
+    });
+    setLinkId("");
+    await load();
+  }
+
+  async function unlinkRepair(rid) {
+    await fetch(`/api/repairs/${rid}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: null }),
+    });
+    await load();
+  }
 
   async function patch(patchObj) {
     setSavingField(true);
@@ -96,6 +155,8 @@ export default function JobDetailPage({ params }) {
   const totalMin = updates.reduce((s, u) => s + (Number(u.minutes) || 0), 0);
   const totalCash = updates.reduce((s, u) => s + (Number(u.cost) || 0), 0);
   const anyUnknownCost = updates.some((u) => u.cost === null || u.cost === undefined);
+  const repairs = job.repairs || [];
+  const totalParts = repairs.reduce((s, r) => s + Number(r.total_cost || 0), 0);
 
   return (
     <div className="max-w-3xl space-y-5">
@@ -103,7 +164,12 @@ export default function JobDetailPage({ params }) {
 
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{job.title}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 min-w-0">{job.title}</h1>
+          {!editing && (
+            <button onClick={startEdit} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0">Edit</button>
+          )}
+        </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           {[job.location_name, eqName].filter(Boolean).join(" · ") || "No station set"}
           {eqName && job.equipment_id ? (
@@ -130,12 +196,89 @@ export default function JobDetailPage({ params }) {
           <div className="text-xs text-slate-500 dark:text-slate-400 pb-2">
             {fmtMins(totalMin) && <span>{fmtMins(totalMin)} logged</span>}
             {totalCash > 0 && <span>{fmtMins(totalMin) ? " · " : ""}${totalCash.toFixed(2)} cash{anyUnknownCost ? "+" : ""}</span>}
+            {totalParts > 0 && <span>{(fmtMins(totalMin) || totalCash > 0) ? " · " : ""}${totalParts.toFixed(2)} parts</span>}
           </div>
         </div>
         {job.next_action && (
           <p className="text-sm text-slate-700 dark:text-slate-300 mt-3">
             <span className="text-slate-500 dark:text-slate-400">Next:</span> {job.next_action}
           </p>
+        )}
+      </div>
+
+      {/* Edit details */}
+      {editing && edit && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-blue-200 dark:border-blue-900 p-5 space-y-3">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Edit details</h2>
+          <input className={fieldClass} placeholder="Title" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <select className={fieldClass} value={edit.location_id} onChange={(e) => setEdit({ ...edit, location_id: e.target.value })}>
+              <option value="">Station…</option>
+              {locations.map((l) => (<option key={l.id} value={l.id}>{l.name}</option>))}
+            </select>
+            <select className={fieldClass} value={edit.equipment_id} onChange={(e) => setEdit({ ...edit, equipment_id: e.target.value })}>
+              <option value="">Equipment (optional)…</option>
+              {equipment.map((e) => (<option key={e.id} value={e.id}>{(e.name || [e.make, e.model].filter(Boolean).join(" ") || "equipment")}{e.location_name ? ` — ${e.location_name}` : ""}</option>))}
+            </select>
+          </div>
+          <input className={fieldClass} placeholder="Problem / what's wrong" value={edit.problem} onChange={(e) => setEdit({ ...edit, problem: e.target.value })} />
+          <input className={fieldClass} placeholder="Next action" value={edit.next_action} onChange={(e) => setEdit({ ...edit, next_action: e.target.value })} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Scheduled</label>
+              <input type="date" className={fieldClass} value={edit.scheduled_date || ""} onChange={(e) => setEdit({ ...edit, scheduled_date: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Due</label>
+              <input type="date" className={fieldClass} value={edit.due_date || ""} onChange={(e) => setEdit({ ...edit, due_date: e.target.value })} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={saveEdit} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Save</button>
+            <button onClick={() => setEditing(false)} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Linked repairs */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Repairs &amp; parts</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">Link an existing repair to pull its part costs into this job — no double entry.</p>
+        {repairs.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No repairs linked.</p>
+        ) : (
+          <ul className="space-y-2">
+            {repairs.map((r) => (
+              <li key={r.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{r.description || "Repair"}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">{r.repair_date}{r.location_name ? ` · ${r.location_name}` : ""}</div>
+                    {Array.isArray(r.items) && r.items.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {r.items.map((it, i) => (<li key={i} className="text-xs text-slate-600 dark:text-slate-300">{it.item_name} ×{it.quantity}</li>))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">${Number(r.total_cost || 0).toFixed(2)}</div>
+                    <button onClick={() => unlinkRepair(r.id)} className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400">Unlink</button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {candidates.length > 0 && (
+          <div className="flex gap-2 mt-3">
+            <select className={fieldClass} value={linkId} onChange={(e) => setLinkId(e.target.value)}>
+              <option value="">Link an existing repair…</option>
+              {candidates.map((r) => (
+                <option key={r.id} value={r.id}>{r.repair_date} · {r.description || "Repair"} · ${Number(r.total_cost || 0).toFixed(2)}</option>
+              ))}
+            </select>
+            <button onClick={linkRepair} disabled={!linkId} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shrink-0">Link</button>
+          </div>
         )}
       </div>
 

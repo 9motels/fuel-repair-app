@@ -30,7 +30,31 @@ export async function GET(request, { params }) {
       args: [id],
     })
   ).rows;
-  return NextResponse.json({ ...job, updates });
+
+  // Linked repairs (reused from the existing repairs table) with their parts cost.
+  const repairRows = (
+    await db.execute({
+      sql: `SELECT r.*, l.name AS location_name FROM repairs r
+            LEFT JOIN locations l ON r.location_id = l.id
+            WHERE r.job_id = ? ORDER BY r.repair_date DESC, r.created_at DESC`,
+      args: [id],
+    })
+  ).rows;
+  const repairs = [];
+  for (const r of repairRows) {
+    const items = (
+      await db.execute({
+        sql: `SELECT ri.quantity, ri.unit_cost, it.name AS item_name
+              FROM repair_items ri JOIN items it ON ri.item_id = it.id
+              WHERE ri.repair_id = ?`,
+        args: [r.id],
+      })
+    ).rows;
+    const total_cost = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_cost), 0);
+    repairs.push({ ...r, items, total_cost });
+  }
+
+  return NextResponse.json({ ...job, updates, repairs });
 }
 
 export async function PATCH(request, { params }) {
