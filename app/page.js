@@ -7,13 +7,13 @@ import { reminderStatus, reminderDueLabel } from "@/lib/vehicleReminders";
 import { complianceStatus, complianceDueLabel } from "@/lib/compliance";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [], compliance: [], jobs: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [], compliance: [], jobs: [], parts: [] });
   const [loading, setLoading] = useState(true);
   const [repairMenu, setRepairMenu] = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes, eqDueRes, compRes, jobsRes] = await Promise.all([
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes, eqDueRes, compRes, jobsRes, partsRes] = await Promise.all([
         fetch("/api/locations"),
         fetch("/api/alerts"),
         fetch("/api/purchases"),
@@ -27,6 +27,7 @@ export default function Dashboard() {
         fetch("/api/equipment/service-due"),
         fetch("/api/compliance"),
         fetch("/api/jobs?open=1"),
+        fetch("/api/parts?open=1"),
       ]);
       setData({
         locations: await locRes.json(),
@@ -42,6 +43,7 @@ export default function Dashboard() {
         equipServiceDue: await eqDueRes.json(),
         compliance: compRes.ok ? await compRes.json() : [],
         jobs: jobsRes.ok ? await jobsRes.json() : [],
+        parts: partsRes.ok ? await partsRes.json() : [],
       });
       setLoading(false);
     }
@@ -106,6 +108,11 @@ export default function Dashboard() {
   const jobsOverdue = openJobs.filter((j) => j.due_date && j.due_date < jobsTodayStr).length;
   const jobsWaitingParts = openJobs.filter((j) => j.status === "waiting_parts").length;
 
+  const openParts = data.parts || [];
+  const partsNeedsResearch = openParts.filter((p) => p.status === "needs_research").length;
+  const partsLate = openParts.filter((p) => p.status === "ordered" && p.expected_date && p.expected_date < jobsTodayStr).length;
+  const partsReceived = openParts.filter((p) => p.status === "received").length;
+
   const stockByLocation = {};
   data.inventory.forEach((inv) => {
     if (!stockByLocation[inv.location_id]) {
@@ -154,20 +161,36 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Open jobs banner — the running work list */}
-      <Link href="/jobs" className="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-6 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">{openJobs.length}</span>
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Open job{openJobs.length === 1 ? "" : "s"}</span>
+      {/* Open jobs + parts follow-up banners */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <Link href="/jobs" className="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">{openJobs.length}</span>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Open job{openJobs.length === 1 ? "" : "s"}</span>
+            </div>
+            <div className="text-right text-sm">
+              {jobsOverdue > 0 && <div className="text-red-600 dark:text-red-400 font-semibold">{jobsOverdue} overdue</div>}
+              {jobsWaitingParts > 0 && <div className="text-amber-600 dark:text-amber-400">{jobsWaitingParts} waiting on parts</div>}
+              {jobsOverdue === 0 && jobsWaitingParts === 0 && <div className="text-slate-400 dark:text-slate-500">View all →</div>}
+            </div>
           </div>
-          <div className="text-right text-sm">
-            {jobsOverdue > 0 && <div className="text-red-600 dark:text-red-400 font-semibold">{jobsOverdue} overdue</div>}
-            {jobsWaitingParts > 0 && <div className="text-amber-600 dark:text-amber-400">{jobsWaitingParts} waiting on parts</div>}
-            {jobsOverdue === 0 && jobsWaitingParts === 0 && <div className="text-slate-400 dark:text-slate-500">View all →</div>}
+        </Link>
+        <Link href="/parts" className="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">{openParts.length}</span>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Part{openParts.length === 1 ? "" : "s"} in flight</span>
+            </div>
+            <div className="text-right text-sm">
+              {partsLate > 0 && <div className="text-red-600 dark:text-red-400 font-semibold">{partsLate} late</div>}
+              {partsNeedsResearch > 0 && <div className="text-amber-600 dark:text-amber-400">{partsNeedsResearch} to research</div>}
+              {partsReceived > 0 && <div className="text-slate-600 dark:text-slate-300">{partsReceived} to install</div>}
+              {partsLate === 0 && partsNeedsResearch === 0 && partsReceived === 0 && <div className="text-slate-400 dark:text-slate-500">View all →</div>}
+            </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6 md:mb-8">
