@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import { JOB_STATUSES, JOB_PRIORITIES, STATUS_LABEL, PRIORITY_LABEL } from "@/lib/jobsAi";
+import { PART_STATUSES, PART_STATUS_LABEL } from "@/lib/partsAi";
 
 const fieldClass =
   "w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -48,6 +49,32 @@ export default function JobDetailPage({ params }) {
   const [candidates, setCandidates] = useState([]);
   const [linkId, setLinkId] = useState("");
 
+  // parts for this job
+  const [parts, setParts] = useState([]);
+  const [newPart, setNewPart] = useState("");
+
+  async function loadParts() {
+    const res = await fetch(`/api/parts?job_id=${id}`);
+    setParts(res.ok ? await res.json() : []);
+  }
+
+  async function addPart(e) {
+    e.preventDefault();
+    if (!newPart.trim()) return;
+    await fetch("/api/parts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: newPart.trim(), job_id: Number(id), created_by_id: currentPerson?.id || null }),
+    });
+    setNewPart("");
+    loadParts();
+  }
+
+  async function setPartStatus(pid, status) {
+    await fetch(`/api/parts/${pid}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+    loadParts();
+  }
+
   async function loadCandidates(data) {
     if (!data) return;
     const qs = data.equipment_id ? `?equipment_id=${data.equipment_id}` : data.location_id ? `?location_id=${data.location_id}` : "";
@@ -68,6 +95,7 @@ export default function JobDetailPage({ params }) {
 
   useEffect(() => {
     load();
+    loadParts();
     fetch("/api/locations").then((r) => r.json()).then((d) => setLocations(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/equipment").then((r) => (r.ok ? r.json() : [])).then((d) => setEquipment(Array.isArray(d) ? d : [])).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -280,6 +308,36 @@ export default function JobDetailPage({ params }) {
             <button onClick={linkRepair} disabled={!linkId} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shrink-0">Link</button>
           </div>
         )}
+      </div>
+
+      {/* Parts needed */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Parts</h2>
+          <Link href="/parts" className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0">All parts →</Link>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">Add a need even before you know the exact part — track it through install on the Parts page.</p>
+        {parts.length > 0 && (
+          <ul className="space-y-2 mb-3">
+            {parts.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5">
+                <div className="min-w-0">
+                  <div className="text-sm text-slate-800 dark:text-slate-200">{p.description}{p.quantity > 1 ? ` ×${p.quantity}` : ""}</div>
+                  {(p.part_number || p.supplier || p.storage_location) && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400">{[p.part_number && `#${p.part_number}`, p.supplier, p.storage_location && `📍 ${p.storage_location}`].filter(Boolean).join(" · ")}</div>
+                  )}
+                </div>
+                <select value={p.status} onChange={(e) => setPartStatus(p.id, e.target.value)} className="border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded px-2 py-1 text-xs shrink-0">
+                  {PART_STATUSES.map((s) => (<option key={s} value={s}>{PART_STATUS_LABEL[s]}</option>))}
+                </select>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form onSubmit={addPart} className="flex gap-2">
+          <input className={fieldClass} placeholder="Need a part? e.g. condenser fan motor" value={newPart} onChange={(e) => setNewPart(e.target.value)} />
+          <button type="submit" disabled={!newPart.trim()} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shrink-0">Add</button>
+        </form>
       </div>
 
       {/* Add update */}
