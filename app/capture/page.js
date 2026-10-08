@@ -44,6 +44,7 @@ export default function CapturePage() {
 
   const [locations, setLocations] = useState([]);
   const [equipment, setEquipment] = useState([]);
+  const [openJobs, setOpenJobs] = useState([]);
 
   // draft editor
   const [draftFor, setDraftFor] = useState(null); // capture id being structured
@@ -93,6 +94,7 @@ export default function CapturePage() {
     refreshServer();
     fetch("/api/locations").then((r) => r.json()).then((d) => setLocations(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/equipment").then((r) => (r.ok ? r.json() : [])).then((d) => setEquipment(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/jobs?open=1").then((r) => (r.ok ? r.json() : [])).then((d) => setOpenJobs(Array.isArray(d) ? d : [])).catch(() => {});
     flushQueue();
     const onOnline = () => { setOnline(true); flushQueue(); };
     const onOffline = () => setOnline(false);
@@ -195,7 +197,7 @@ export default function CapturePage() {
   }
 
   async function confirmDraft(captureId) {
-    if (!draft.title.trim()) {
+    if (!draft.job_id && !draft.title.trim()) {
       setDraftError("Give the job a title.");
       return;
     }
@@ -338,36 +340,62 @@ export default function CapturePage() {
                       </div>
                     ) : draft ? (
                       <div className="space-y-3">
-                        {draft.equipment_ambiguous && (
-                          <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-2">
-                            Equipment unclear{draft.equipment_guess ? ` ("${draft.equipment_guess}")` : ""} — pick the right one below.
-                          </p>
+                        {(() => {
+                          const matches = openJobs.filter(
+                            (j) =>
+                              (draft.equipment_id && String(j.equipment_id) === String(draft.equipment_id)) ||
+                              (draft.location_id && String(j.location_id) === String(draft.location_id))
+                          );
+                          const list = matches.length ? matches : openJobs;
+                          if (list.length === 0) return null;
+                          return (
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Log to</label>
+                              <select className={fieldClass} value={draft.job_id} onChange={(e) => setD({ job_id: e.target.value })}>
+                                <option value="">➕ New job</option>
+                                {list.map((j) => (
+                                  <option key={j.id} value={j.id}>
+                                    {j.title} · {STATUS_LABEL[j.status] || j.status}{j.location_name ? ` — ${j.location_name}` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })()}
+                        {!draft.job_id && (
+                          <>
+                            {draft.equipment_ambiguous && (
+                              <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-2">
+                                Equipment unclear{draft.equipment_guess ? ` ("${draft.equipment_guess}")` : ""} — pick the right one below.
+                              </p>
+                            )}
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Job title</label>
+                              <input className={fieldClass} value={draft.title} onChange={(e) => setD({ title: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Station</label>
+                                <select className={fieldClass} value={draft.location_id} onChange={(e) => setD({ location_id: e.target.value })}>
+                                  <option value="">{draft.location_guess ? `? ${draft.location_guess}` : "Select…"}</option>
+                                  {locations.map((l) => (<option key={l.id} value={l.id}>{l.name}</option>))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Equipment (optional)</label>
+                                <select className={fieldClass} value={draft.equipment_id} onChange={(e) => setD({ equipment_id: e.target.value })}>
+                                  <option value="">{draft.equipment_guess ? `? ${draft.equipment_guess}` : "None / later"}</option>
+                                  {equipment.map((e) => (
+                                    <option key={e.id} value={e.id}>
+                                      {(e.name || [e.make, e.model].filter(Boolean).join(" ") || "equipment")}
+                                      {e.location_name ? ` — ${e.location_name}` : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          </>
                         )}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Job title</label>
-                          <input className={fieldClass} value={draft.title} onChange={(e) => setD({ title: e.target.value })} />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Station</label>
-                            <select className={fieldClass} value={draft.location_id} onChange={(e) => setD({ location_id: e.target.value })}>
-                              <option value="">{draft.location_guess ? `? ${draft.location_guess}` : "Select…"}</option>
-                              {locations.map((l) => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Equipment (optional)</label>
-                            <select className={fieldClass} value={draft.equipment_id} onChange={(e) => setD({ equipment_id: e.target.value })}>
-                              <option value="">{draft.equipment_guess ? `? ${draft.equipment_guess}` : "None / later"}</option>
-                              {equipment.map((e) => (
-                                <option key={e.id} value={e.id}>
-                                  {(e.name || [e.make, e.model].filter(Boolean).join(" ") || "equipment")}
-                                  {e.location_name ? ` — ${e.location_name}` : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
                         <div>
                           <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Work performed</label>
                           <textarea rows={2} className={fieldClass} value={draft.work_performed} onChange={(e) => setD({ work_performed: e.target.value })} />
@@ -416,7 +444,7 @@ export default function CapturePage() {
                         {draftError && <p className="text-sm text-red-600 dark:text-red-400">{draftError}</p>}
                         <div className="flex gap-2">
                           <button onClick={() => confirmDraft(c.id)} disabled={confirming} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
-                            {confirming ? "Saving…" : "Create job"}
+                            {confirming ? "Saving…" : draft.job_id ? "Add to job" : "Create job"}
                           </button>
                           <button onClick={() => { setDraftFor(null); setDraft(null); }} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600">
                             Cancel

@@ -51,8 +51,8 @@ export async function POST(request) {
   const status = JOB_STATUSES.includes(body.status) ? body.status : 'new';
   const priority = JOB_PRIORITIES.includes(body.priority) ? body.priority : 'normal';
   const result = await db.execute({
-    sql: `INSERT INTO jobs (location_id, equipment_id, title, problem, next_action, priority, status, created_by_id, completed_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO jobs (location_id, equipment_id, title, problem, next_action, priority, status, scheduled_date, due_date, created_by_id, completed_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       body.location_id || null,
       body.equipment_id || null,
@@ -61,6 +61,8 @@ export async function POST(request) {
       (body.next_action || '').trim(),
       priority,
       status,
+      body.scheduled_date || null,
+      body.due_date || null,
       body.created_by_id || null,
       status === 'completed' ? new Date().toISOString() : null,
     ],

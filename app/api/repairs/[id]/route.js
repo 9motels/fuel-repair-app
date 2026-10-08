@@ -11,6 +11,23 @@ export async function GET(request, { params }) {
   return NextResponse.json({ ...repair, items, total_cost });
 }
 
+export async function PATCH(request, { params }) {
+  const db = await getDb();
+  const { id } = await params;
+  const body = await request.json();
+  const fields = [];
+  const args = [];
+  // job_id: link to a job, or null to unlink. (Other repair fields can join later.)
+  if ('job_id' in body) { fields.push('job_id = ?'); args.push(body.job_id || null); }
+  for (const key of ['description', 'notes', 'repair_date', 'equipment_id']) {
+    if (key in body) { fields.push(`${key} = ?`); args.push(body[key] === '' ? null : body[key]); }
+  }
+  if (fields.length === 0) return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+  args.push(id);
+  await db.execute({ sql: `UPDATE repairs SET ${fields.join(', ')} WHERE id = ?`, args });
+  return NextResponse.json({ success: true });
+}
+
 export async function DELETE(request, { params }) {
   const db = await getDb();
   const { id } = await params;

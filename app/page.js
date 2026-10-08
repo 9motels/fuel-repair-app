@@ -7,13 +7,13 @@ import { reminderStatus, reminderDueLabel } from "@/lib/vehicleReminders";
 import { complianceStatus, complianceDueLabel } from "@/lib/compliance";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [], compliance: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [], compliance: [], jobs: [] });
   const [loading, setLoading] = useState(true);
   const [repairMenu, setRepairMenu] = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes, eqDueRes, compRes] = await Promise.all([
+      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes, eqDueRes, compRes, jobsRes] = await Promise.all([
         fetch("/api/locations"),
         fetch("/api/alerts"),
         fetch("/api/purchases"),
@@ -26,6 +26,7 @@ export default function Dashboard() {
         fetch("/api/vehicles/service-due"),
         fetch("/api/equipment/service-due"),
         fetch("/api/compliance"),
+        fetch("/api/jobs?open=1"),
       ]);
       setData({
         locations: await locRes.json(),
@@ -40,6 +41,7 @@ export default function Dashboard() {
         serviceDue: await dueRes.json(),
         equipServiceDue: await eqDueRes.json(),
         compliance: compRes.ok ? await compRes.json() : [],
+        jobs: jobsRes.ok ? await jobsRes.json() : [],
       });
       setLoading(false);
     }
@@ -99,6 +101,11 @@ export default function Dashboard() {
     .sort((a, b) => (a.s.daysLeft ?? 0) - (b.s.daysLeft ?? 0));
   const complianceOverdue = complianceDue.filter((t) => t.s.level === "overdue").length;
 
+  const openJobs = data.jobs || [];
+  const jobsTodayStr = new Date().toISOString().slice(0, 10);
+  const jobsOverdue = openJobs.filter((j) => j.due_date && j.due_date < jobsTodayStr).length;
+  const jobsWaitingParts = openJobs.filter((j) => j.status === "waiting_parts").length;
+
   const stockByLocation = {};
   data.inventory.forEach((inv) => {
     if (!stockByLocation[inv.location_id]) {
@@ -146,6 +153,21 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Open jobs banner — the running work list */}
+      <Link href="/jobs" className="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-6 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">{openJobs.length}</span>
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Open job{openJobs.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="text-right text-sm">
+            {jobsOverdue > 0 && <div className="text-red-600 dark:text-red-400 font-semibold">{jobsOverdue} overdue</div>}
+            {jobsWaitingParts > 0 && <div className="text-amber-600 dark:text-amber-400">{jobsWaitingParts} waiting on parts</div>}
+            {jobsOverdue === 0 && jobsWaitingParts === 0 && <div className="text-slate-400 dark:text-slate-500">View all →</div>}
+          </div>
+        </div>
+      </Link>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6 md:mb-8">
