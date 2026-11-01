@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import PhotoButtons from "@/lib/PhotoButtons";
-import { CATEGORIES } from "@/lib/equipmentAi";
+import { CATEGORIES } from "@/lib/equipmentMeta";
 import { uploadFile } from "@/lib/equipmentUtils";
 
 export default function NewEquipmentPage() {

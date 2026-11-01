@@ -3,9 +3,30 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
-import { JOB_STATUSES, JOB_PRIORITIES, STATUS_LABEL, PRIORITY_LABEL } from "@/lib/jobsAi";
+import { JOB_STATUSES, JOB_PRIORITIES, STATUS_LABEL, PRIORITY_LABEL } from "@/lib/jobMeta";
+import { PART_STATUSES, PART_STATUS_LABEL } from "@/lib/partMeta";
 
 const QUEUE_KEY = "fuelapp_capture_queue_v1";
+
+// A new part need can only start in one of these stages.
+const NEED_STATUSES = ["needs_research", "ready_to_order", "ordered"];
+
+let partRowSeq = 0;
+// One part action row in the draft: either a new need or an update to a tracked part.
+function newPartRow(action, init = {}) {
+  partRowSeq += 1;
+  return {
+    key: `p${partRowSeq}`,
+    include: true,
+    action,
+    description: "",
+    quantity: 1,
+    part_id: "",
+    new_status: action === "need" ? "needs_research" : "received",
+    storage_location: "",
+    ...init,
+  };
+}
 
 function readQueue() {
   try {
@@ -45,6 +66,8 @@ export default function CapturePage() {
   const [locations, setLocations] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [openJobs, setOpenJobs] = useState([]);
+  const [openParts, setOpenParts] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
 
   // draft editor
   const [draftFor, setDraftFor] = useState(null); // capture id being structured
@@ -59,6 +82,12 @@ export default function CapturePage() {
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setServerCaptures(Array.isArray(d) ? d : []))
       .catch(() => {});
+  }, []);
+
+  // Open jobs + open parts feed the "Log to" and part-update pickers.
+  const refreshLists = useCallback(() => {
+    fetch("/api/jobs?open=1").then((r) => (r.ok ? r.json() : [])).then((d) => setOpenJobs(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/parts?open=1").then((r) => (r.ok ? r.json() : [])).then((d) => setOpenParts(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
   // Push any unsynced queued items to the server. Idempotent on client_key, so a
@@ -94,7 +123,8 @@ export default function CapturePage() {
     refreshServer();
     fetch("/api/locations").then((r) => r.json()).then((d) => setLocations(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/equipment").then((r) => (r.ok ? r.json() : [])).then((d) => setEquipment(Array.isArray(d) ? d : [])).catch(() => {});
-    fetch("/api/jobs?open=1").then((r) => (r.ok ? r.json() : [])).then((d) => setOpenJobs(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/vehicles").then((r) => (r.ok ? r.json() : [])).then((d) => setVehicles(Array.isArray(d) ? d : [])).catch(() => {});
+    refreshLists();
     flushQueue();
     const onOnline = () => { setOnline(true); flushQueue(); };
     const onOffline = () => setOnline(false);
@@ -158,8 +188,24 @@ export default function CapturePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not structure this note.");
       const d = data.draft;
+      const parts = (Array.isArray(d.parts) ? d.parts : []).map((p) =>
+        p.action === "update"
+          ? newPartRow("update", {
+              description: p.description || "",
+              part_id: p.match_part_id ? String(p.match_part_id) : "",
+              new_status: PART_STATUSES.includes(p.new_status) || p.new_status === "unchanged" ? p.new_status : "received",
+              storage_location: p.storage_location || "",
+            })
+          : newPartRow("need", {
+              description: p.description || "",
+              quantity: p.quantity || 1,
+              new_status: NEED_STATUSES.includes(p.new_status) ? p.new_status : "needs_research",
+            })
+      );
       setDraft({
-        job_id: "",
+        // A pure parts-logistics note ("fan arrived, put it in the truck") defaults to no job.
+        job_id: d.job_relevant === false && parts.length > 0 ? "none" : "",
+        parts,
         title: d.title || "",
         location_id: d.location_id || "",
         equipment_id: d.equipment_id || "",
@@ -189,7 +235,7 @@ export default function CapturePage() {
     setDraftFor(captureId);
     setDraftError("");
     setDraft({
-      job_id: "", title: "", location_id: "", equipment_id: "", equipment_ambiguous: false,
+      job_id: "", parts: [], title: "", location_id: "", equipment_id: "", equipment_ambiguous: false,
       equipment_guess: "", location_guess: "", problem: "", work_performed: "",
       minutes: "", minutes_estimated: false, cost: "", cost_unknown: true, cost_note: "",
       status: "new", priority: "normal", next_action: "",
@@ -197,8 +243,24 @@ export default function CapturePage() {
   }
 
   async function confirmDraft(captureId) {
-    if (!draft.job_id && !draft.title.trim()) {
+    const partsOnly = draft.job_id === "none";
+    const partActions = draft.parts
+      .filter((p) => p.include)
+      .filter((p) => (p.action === "need" ? p.description.trim() : p.part_id))
+      .map((p) => ({
+        action: p.action,
+        description: p.description.trim(),
+        quantity: Number(p.quantity) || 1,
+        part_id: p.part_id ? Number(p.part_id) : null,
+        new_status: p.new_status,
+        storage_location: p.storage_location.trim(),
+      }));
+    if (!partsOnly && !draft.job_id && !draft.title.trim()) {
       setDraftError("Give the job a title.");
+      return;
+    }
+    if (partsOnly && partActions.length === 0) {
+      setDraftError("Add a part need, or pick which tracked part this is about.");
       return;
     }
     setConfirming(true);
@@ -208,7 +270,9 @@ export default function CapturePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          job_id: draft.job_id || null,
+          parts_only: partsOnly,
+          parts: partActions,
+          job_id: draft.job_id && !partsOnly ? draft.job_id : null,
           title: draft.title.trim(),
           location_id: draft.location_id || null,
           equipment_id: draft.equipment_id || null,
@@ -228,8 +292,13 @@ export default function CapturePage() {
       if (!res.ok) throw new Error(data.error || "Could not save the job.");
       setDraftFor(null);
       setDraft(null);
-      setFlash("Logged to a job ✓");
+      const partBits = [
+        data.parts_created ? `${data.parts_created} part need${data.parts_created === 1 ? "" : "s"} added` : "",
+        data.parts_updated ? `${data.parts_updated} part${data.parts_updated === 1 ? "" : "s"} updated` : "",
+      ].filter(Boolean).join(", ");
+      setFlash(`${partsOnly ? "Saved" : "Logged to a job"}${partBits ? ` · ${partBits}` : ""} ✓`);
       refreshServer();
+      refreshLists();
       setTimeout(() => setFlash(""), 4000);
     } catch (err) {
       setDraftError(err.message);
@@ -246,6 +315,11 @@ export default function CapturePage() {
   const unsynced = queue.filter((q) => !q.synced).length;
 
   const setD = (patch) => setDraft((d) => ({ ...d, ...patch }));
+  const setPart = (i, patch) => setDraft((d) => ({ ...d, parts: d.parts.map((p, idx) => (idx === i ? { ...p, ...patch } : p)) }));
+  const removePart = (i) => setDraft((d) => ({ ...d, parts: d.parts.filter((_, idx) => idx !== i) }));
+  const addPart = (action) => setDraft((d) => ({ ...d, parts: [...d.parts, newPartRow(action)] }));
+
+  const storageOpts = [...new Set(["Office", "My truck", ...vehicles.map((v) => v.name).filter(Boolean), ...locations.map((l) => l.name)])];
 
   return (
     <div className="max-w-2xl">
@@ -257,7 +331,7 @@ export default function CapturePage() {
       </div>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
         Say what you did in plain words (tap the mic on your keyboard to dictate). It saves instantly —
-        AI turns it into a job entry after.
+        AI sorts it into a job and any parts after (e.g. “fan arrived, put it in the truck”).
       </p>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-4">
@@ -312,8 +386,14 @@ export default function CapturePage() {
 
                 {structured ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                    → <Link href="/jobs" className="text-blue-600 dark:text-blue-400 hover:underline">{c.job_title || "job"}</Link>
-                    {c.job_status ? ` · ${STATUS_LABEL[c.job_status] || c.job_status}` : ""}
+                    {c.job_id ? (
+                      <>
+                        → <Link href={`/jobs/${c.job_id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{c.job_title || "job"}</Link>
+                        {c.job_status ? ` · ${STATUS_LABEL[c.job_status] || c.job_status}` : ""}
+                      </>
+                    ) : (
+                      <>→ <Link href="/parts" className="text-blue-600 dark:text-blue-400 hover:underline">Parts updated</Link></>
+                    )}
                   </p>
                 ) : c.id ? (
                   <div className="mt-2 flex gap-3">
@@ -347,12 +427,12 @@ export default function CapturePage() {
                               (draft.location_id && String(j.location_id) === String(draft.location_id))
                           );
                           const list = matches.length ? matches : openJobs;
-                          if (list.length === 0) return null;
                           return (
                             <div>
                               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Log to</label>
                               <select className={fieldClass} value={draft.job_id} onChange={(e) => setD({ job_id: e.target.value })}>
                                 <option value="">➕ New job</option>
+                                <option value="none">📦 No job — parts only</option>
                                 {list.map((j) => (
                                   <option key={j.id} value={j.id}>
                                     {j.title} · {STATUS_LABEL[j.status] || j.status}{j.location_name ? ` — ${j.location_name}` : ""}
@@ -362,6 +442,29 @@ export default function CapturePage() {
                             </div>
                           );
                         })()}
+                        {draft.job_id === "none" && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Station (for new part needs)</label>
+                              <select className={fieldClass} value={draft.location_id} onChange={(e) => setD({ location_id: e.target.value })}>
+                                <option value="">{draft.location_guess ? `? ${draft.location_guess}` : "None"}</option>
+                                {locations.map((l) => (<option key={l.id} value={l.id}>{l.name}</option>))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Equipment (optional)</label>
+                              <select className={fieldClass} value={draft.equipment_id} onChange={(e) => setD({ equipment_id: e.target.value })}>
+                                <option value="">{draft.equipment_guess ? `? ${draft.equipment_guess}` : "None"}</option>
+                                {equipment.map((e) => (
+                                  <option key={e.id} value={e.id}>
+                                    {(e.name || [e.make, e.model].filter(Boolean).join(" ") || "equipment")}
+                                    {e.location_name ? ` — ${e.location_name}` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
                         {!draft.job_id && (
                           <>
                             {draft.equipment_ambiguous && (
@@ -396,6 +499,8 @@ export default function CapturePage() {
                             </div>
                           </>
                         )}
+                        {draft.job_id !== "none" && (
+                        <>
                         <div>
                           <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Work performed</label>
                           <textarea rows={2} className={fieldClass} value={draft.work_performed} onChange={(e) => setD({ work_performed: e.target.value })} />
@@ -441,10 +546,70 @@ export default function CapturePage() {
                           <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Next action / follow-up</label>
                           <input className={fieldClass} value={draft.next_action} onChange={(e) => setD({ next_action: e.target.value })} />
                         </div>
+                        </>
+                        )}
+
+                        {/* Parts mentioned in the note: new needs + updates to tracked parts */}
+                        <div className="space-y-2">
+                          {draft.parts.length > 0 && (
+                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Parts</label>
+                          )}
+                          {draft.parts.map((p, i) => (
+                            <div key={p.key} className={`border rounded-lg p-2.5 space-y-2 ${p.include ? "border-blue-200 dark:border-blue-900 bg-blue-50/40 dark:bg-blue-950/30" : "border-slate-200 dark:border-slate-700 opacity-60"}`}>
+                              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" checked={p.include} onChange={(e) => setPart(i, { include: e.target.checked })} />
+                                <span>{p.action === "need" ? "➕ New part need" : "📦 Update a tracked part"}</span>
+                                <button type="button" onClick={() => removePart(i)} className="ml-auto font-normal text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400">Remove</button>
+                              </div>
+                              {p.action === "need" ? (
+                                <>
+                                  <div className="grid grid-cols-[1fr_4.5rem] gap-2">
+                                    <input className={fieldClass} placeholder="What part? e.g. condenser fan motor" value={p.description} onChange={(e) => setPart(i, { description: e.target.value })} />
+                                    <input type="number" min="1" className={fieldClass} value={p.quantity} onChange={(e) => setPart(i, { quantity: e.target.value })} />
+                                  </div>
+                                  <select className={fieldClass} value={p.new_status} onChange={(e) => setPart(i, { new_status: e.target.value })}>
+                                    {NEED_STATUSES.map((s) => (<option key={s} value={s}>{PART_STATUS_LABEL[s]}</option>))}
+                                  </select>
+                                </>
+                              ) : (
+                                <>
+                                  <select className={fieldClass} value={p.part_id} onChange={(e) => setPart(i, { part_id: e.target.value })}>
+                                    <option value="">{p.description ? `Which part? (“${p.description}”)` : "Which part?"}</option>
+                                    {openParts.map((op) => (
+                                      <option key={op.id} value={op.id}>
+                                        {op.description}{op.quantity > 1 ? ` ×${op.quantity}` : ""} — {PART_STATUS_LABEL[op.status] || op.status}{op.location_name ? ` @ ${op.location_name}` : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {!p.part_id && (
+                                    <p className="text-xs text-amber-700 dark:text-amber-300">Not sure which tracked part this is — pick it above.</p>
+                                  )}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <select className={fieldClass} value={p.new_status} onChange={(e) => setPart(i, { new_status: e.target.value })}>
+                                      <option value="unchanged">Status unchanged</option>
+                                      {PART_STATUSES.map((s) => (<option key={s} value={s}>{PART_STATUS_LABEL[s]}</option>))}
+                                    </select>
+                                    <input list="capture-storage" className={fieldClass} placeholder="Stored where?" value={p.storage_location} onChange={(e) => setPart(i, { storage_location: e.target.value })} />
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                          <div className="flex gap-4">
+                            <button type="button" onClick={() => addPart("need")} className="text-xs font-medium text-blue-700 dark:text-blue-300 hover:underline">+ Part need</button>
+                            {openParts.length > 0 && (
+                              <button type="button" onClick={() => addPart("update")} className="text-xs font-medium text-blue-700 dark:text-blue-300 hover:underline">+ Update a tracked part</button>
+                            )}
+                          </div>
+                          <datalist id="capture-storage">
+                            {storageOpts.map((o) => (<option key={o} value={o} />))}
+                          </datalist>
+                        </div>
+
                         {draftError && <p className="text-sm text-red-600 dark:text-red-400">{draftError}</p>}
                         <div className="flex gap-2">
                           <button onClick={() => confirmDraft(c.id)} disabled={confirming} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
-                            {confirming ? "Saving…" : draft.job_id ? "Add to job" : "Create job"}
+                            {confirming ? "Saving…" : draft.job_id === "none" ? "Save parts" : draft.job_id ? "Add to job" : "Create job"}
                           </button>
                           <button onClick={() => { setDraftFor(null); setDraft(null); }} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600">
                             Cancel
