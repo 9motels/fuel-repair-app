@@ -23,7 +23,7 @@ const SECTIONS = {
   alerts: [alertsGET, '/api/alerts'],
   purchases: [purchasesGET, '/api/purchases'],
   transfers: [transfersGET, '/api/transfers'],
-  repairs: [repairsGET, '/api/repairs'],
+  repairs: [repairsGET, '/api/repairs?limit=5'], // the dashboard only shows the latest 5
   inventory: [inventoryGET, '/api/inventory'],
   equipment: [equipmentGET, '/api/equipment'],
   items: [itemsGET, '/api/items'],
