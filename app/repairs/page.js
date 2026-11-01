@@ -23,7 +23,7 @@ export default function RepairsPage() {
     location_id: "", pump_number: "", repair_date: new Date().toISOString().split("T")[0], description: "", notes: "", equipment_id: "",
   });
 
-  const [itemForm, setItemForm] = useState({ item_id: "", source_location_id: "", quantity: 1, unit_cost: "" });
+  const [itemForm, setItemForm] = useState({ item_id: "", source_location_id: "", quantity: 1, unit_cost: "", other_name: "" });
   const [repairItems, setRepairItems] = useState([]);
   const [closingId, setClosingId] = useState(null);
 
@@ -72,32 +72,75 @@ export default function RepairsPage() {
 
   function getLastPrice(itemId) {
     const item = items.find((i) => i.id === parseInt(itemId));
-    if (item && item.description) {
-      const match = item.description.match(/\$(\d+\.?\d*)/);
-      if (match) return parseFloat(match[1]);
+    if (item) {
+      // Prefer the saved price (set on the Items page); fall back to a $ in the notes.
+      if (Number(item.unit_cost) > 0) return Number(item.unit_cost);
+      if (item.description) {
+        const match = item.description.match(/\$(\d+\.?\d*)/);
+        if (match) return parseFloat(match[1]);
+      }
     }
     return 0;
   }
 
   function handleItemSelect(itemId) {
+    if (itemId === "other") {
+      setItemForm({ item_id: "other", source_location_id: repairForm.location_id || "", unit_cost: "", quantity: 1, other_name: "" });
+      return;
+    }
     const price = getLastPrice(itemId);
     const sourceLoc = repairForm.location_id || "";
-    setItemForm({ item_id: itemId, source_location_id: sourceLoc, unit_cost: price.toString(), quantity: 1 });
+    setItemForm({ item_id: itemId, source_location_id: sourceLoc, unit_cost: price ? price.toString() : "", quantity: 1, other_name: "" });
   }
 
-  function addItemToRepair() {
-    if (!itemForm.item_id || !itemForm.source_location_id || !itemForm.quantity || !itemForm.unit_cost) return;
-    const item = items.find((i) => i.id === parseInt(itemForm.item_id));
-    const sourceLoc = locations.find((l) => l.id === parseInt(itemForm.source_location_id));
-    setRepairItems([...repairItems, {
-      item_id: parseInt(itemForm.item_id),
-      source_location_id: parseInt(itemForm.source_location_id),
-      quantity: parseInt(itemForm.quantity),
-      unit_cost: parseFloat(itemForm.unit_cost),
-      item_name: item?.name || "",
+  async function addItemToRepair() {
+    const isOther = itemForm.item_id === "other";
+    const needName = isOther ? itemForm.other_name.trim() : itemForm.item_id;
+    if (!needName || !itemForm.source_location_id || !itemForm.quantity || itemForm.unit_cost === "") return;
+    const qty = parseInt(itemForm.quantity);
+    const cost = parseFloat(itemForm.unit_cost);
+    const sourceId = parseInt(itemForm.source_location_id);
+    const sourceLoc = locations.find((l) => l.id === sourceId);
+
+    let itemId;
+    let itemName;
+    if (isOther) {
+      // Create the one-off part in the catalog so it has an id and is reusable next time.
+      const created = await (await fetch("/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: itemForm.other_name.trim(), unit_cost: cost, min_quantity: 0 }),
+      })).json();
+      itemId = created.id;
+      itemName = itemForm.other_name.trim();
+      // Seed stock at the source = qty so the repair's decrement nets to zero (bought for
+      // this job, not pulled from existing stock) — no phantom negative inventory.
+      await fetch("/api/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_id: itemId, location_id: sourceId, quantity: qty }),
+      });
+      await fetchAll();
+    } else {
+      itemId = parseInt(itemForm.item_id);
+      const item = items.find((i) => i.id === itemId);
+      itemName = item?.name || "";
+      // Keep the parts-list price current: if the entered cost differs, save it back.
+      if (item && Number(item.unit_cost || 0) !== cost) {
+        fetch("/api/items", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...item, unit_cost: cost }) }).catch(() => {});
+        setItems((prev) => prev.map((x) => (x.id === itemId ? { ...x, unit_cost: cost } : x)));
+      }
+    }
+
+    setRepairItems((prev) => [...prev, {
+      item_id: itemId,
+      source_location_id: sourceId,
+      quantity: qty,
+      unit_cost: cost,
+      item_name: itemName,
       source_location_name: sourceLoc?.name || "",
     }]);
-    setItemForm({ item_id: "", source_location_id: repairForm.location_id || "", quantity: 1, unit_cost: "" });
+    setItemForm({ item_id: "", source_location_id: repairForm.location_id || "", quantity: 1, unit_cost: "", other_name: "" });
   }
 
   function removeRepairItem(index) {
@@ -353,9 +396,19 @@ export default function RepairsPage() {
                 <select value={itemForm.item_id} onChange={(e) => handleItemSelect(e.target.value)}
                   className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Select item...</option>
+                  <option value="other">➕ Other (one-off part)…</option>
                   {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                 </select>
               </div>
+              {itemForm.item_id === "other" && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Part name</label>
+                  <input type="text" value={itemForm.other_name} onChange={(e) => setItemForm({ ...itemForm, other_name: e.target.value })}
+                    placeholder="e.g. Blower motor run capacitor"
+                    className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">New part — added to your parts list with this price for next time.</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">From Location</label>
@@ -379,6 +432,9 @@ export default function RepairsPage() {
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Unit Cost ($)</label>
                   <input type="number" min="0" step="0.01" value={itemForm.unit_cost} onChange={(e) => setItemForm({ ...itemForm, unit_cost: e.target.value })}
                     className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  {itemForm.item_id && itemForm.item_id !== "other" && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Changing this updates the part&apos;s saved price.</p>
+                  )}
                 </div>
                 <div className="flex items-end">
                   <button type="button" onClick={addItemToRepair}
