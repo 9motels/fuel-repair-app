@@ -6,6 +6,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const locationId = searchParams.get('location_id');
   const equipmentId = searchParams.get('equipment_id');
+  const limit = parseInt(searchParams.get('limit'), 10);
 
   let sql = `SELECT r.*, l.name as location_name, p.name as created_by_name, eq.name as equipment_name
              FROM repairs r
@@ -17,20 +18,33 @@ export async function GET(request) {
   if (locationId) { sql += ' AND r.location_id = ?'; args.push(locationId); }
   if (equipmentId) { sql += ' AND r.equipment_id = ?'; args.push(equipmentId); }
   sql += ' ORDER BY r.repair_date DESC, r.created_at DESC';
+  if (limit > 0) { sql += ' LIMIT ?'; args.push(limit); }
 
   const repairs = (await db.execute({ sql, args })).rows;
 
-  const result = [];
-  for (const r of repairs) {
-    const items = (await db.execute({
+  // Every listed repair's parts in ONE query (was one query per repair, which
+  // made this endpoint slower with every repair logged).
+  const itemsByRepair = new Map();
+  if (repairs.length > 0) {
+    const ids = repairs.map((r) => r.id);
+    const itemRows = (await db.execute({
       sql: `SELECT ri.*, it.name as item_name, it.part_number, it.unit, sl.name as source_location_name
             FROM repair_items ri JOIN items it ON ri.item_id = it.id JOIN locations sl ON ri.source_location_id = sl.id
-            WHERE ri.repair_id = ?`,
-      args: [r.id]
+            WHERE ri.repair_id IN (${ids.map(() => '?').join(',')})
+            ORDER BY ri.id`,
+      args: ids,
     })).rows;
-    const total_cost = items.reduce((sum, i) => sum + Number(i.quantity) * Number(i.unit_cost), 0);
-    result.push({ ...r, items, total_cost });
+    for (const it of itemRows) {
+      if (!itemsByRepair.has(it.repair_id)) itemsByRepair.set(it.repair_id, []);
+      itemsByRepair.get(it.repair_id).push(it);
+    }
   }
+
+  const result = repairs.map((r) => {
+    const items = itemsByRepair.get(r.id) || [];
+    const total_cost = items.reduce((sum, i) => sum + Number(i.quantity) * Number(i.unit_cost), 0);
+    return { ...r, items, total_cost };
+  });
   return NextResponse.json(result);
 }
 
