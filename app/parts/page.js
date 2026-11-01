@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePerson } from "@/lib/personContext";
 import { uploadFile } from "@/lib/equipmentUtils";
-import { PART_STATUSES, PART_STATUS_LABEL } from "@/lib/partsAi";
+import { PART_STATUSES, PART_STATUS_LABEL } from "@/lib/partMeta";
 
 const fieldClass =
   "w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500";

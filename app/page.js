@@ -13,39 +13,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [locRes, alertRes, purchRes, transRes, repRes, invRes, eqRes, itemRes, vehRes, dueRes, eqDueRes, compRes, jobsRes, partsRes] = await Promise.all([
-        fetch("/api/locations"),
-        fetch("/api/alerts"),
-        fetch("/api/purchases"),
-        fetch("/api/transfers"),
-        fetch("/api/repairs"),
-        fetch("/api/inventory"),
-        fetch("/api/equipment"),
-        fetch("/api/items"),
-        fetch("/api/vehicles"),
-        fetch("/api/vehicles/service-due"),
-        fetch("/api/equipment/service-due"),
-        fetch("/api/compliance"),
-        fetch("/api/jobs?open=1"),
-        fetch("/api/parts?open=1"),
-      ]);
-      setData({
-        locations: await locRes.json(),
-        alerts: await alertRes.json(),
-        purchases: await purchRes.json(),
-        transfers: await transRes.json(),
-        repairs: await repRes.json(),
-        inventory: await invRes.json(),
-        equipment: await eqRes.json(),
-        items: await itemRes.json(),
-        vehicles: await vehRes.json(),
-        serviceDue: await dueRes.json(),
-        equipServiceDue: await eqDueRes.json(),
-        compliance: compRes.ok ? await compRes.json() : [],
-        jobs: jobsRes.ok ? await jobsRes.json() : [],
-        parts: partsRes.ok ? await partsRes.json() : [],
-      });
-      setLoading(false);
+      // One request for the whole dashboard (was 14 separate ones).
+      try {
+        const res = await fetch("/api/dashboard");
+        const all = res.ok ? await res.json() : {};
+        setData((d) => {
+          const next = { ...d };
+          for (const key of Object.keys(d)) if (Array.isArray(all[key])) next[key] = all[key];
+          return next;
+        });
+      } finally {
+        setLoading(false);
+      }
     }
     fetchAll();
   }, []);
