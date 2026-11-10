@@ -13,6 +13,7 @@ import { GET as equipmentDueGET } from '@/app/api/equipment/service-due/route';
 import { GET as complianceGET } from '@/app/api/compliance/route';
 import { GET as jobsGET } from '@/app/api/jobs/route';
 import { GET as partsGET } from '@/app/api/parts/route';
+import { GET as theftSummaryGET } from '@/app/api/theft/summary/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,7 @@ const SECTIONS = {
   compliance: [complianceGET, '/api/compliance'],
   jobs: [jobsGET, '/api/jobs?open=1'],
   parts: [partsGET, '/api/parts?open=1'],
+  theft: [theftSummaryGET, '/api/theft/summary'],
 };
 
 // GET -> everything the dashboard shows, in ONE round trip. Each section runs its

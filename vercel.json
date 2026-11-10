@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/low-stock-alerts",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/theft-prune",
+      "schedule": "20 9 * * *"
     }
   ]
 }
