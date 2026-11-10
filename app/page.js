@@ -7,7 +7,7 @@ import { reminderStatus, reminderDueLabel } from "@/lib/vehicleReminders";
 import { complianceStatus, complianceDueLabel } from "@/lib/compliance";
 
 export default function Dashboard() {
-  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [], compliance: [], jobs: [], parts: [] });
+  const [data, setData] = useState({ locations: [], alerts: [], purchases: [], transfers: [], repairs: [], inventory: [], equipment: [], items: [], vehicles: [], serviceDue: [], equipServiceDue: [], compliance: [], jobs: [], parts: [], theft: [] });
   const [loading, setLoading] = useState(true);
   const [repairMenu, setRepairMenu] = useState(false);
 
@@ -197,6 +197,11 @@ export default function Dashboard() {
         <Link href="/vehicles" className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 md:p-5 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Vehicles</p>
           <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{data.vehicles.length}</p>
+        </Link>
+        <Link href="/theft" className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 md:p-5 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Theft Review</p>
+          <p className={`text-2xl md:text-3xl font-bold mt-1 ${(data.theft[0]?.unlabeled_alerts || 0) > 0 ? "text-red-700 dark:text-red-300" : "text-slate-900 dark:text-slate-100"}`}>{data.theft[0]?.unlabeled ?? 0}</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">clips to review · {data.theft[0]?.alerts_today ?? 0} alerts today</p>
         </Link>
       </div>
 
