@@ -20,8 +20,13 @@ export async function GET(request) {
              FROM theft_events e JOIN locations l ON e.location_id = l.id
              LEFT JOIN people p ON e.labeled_by_id = p.id WHERE 1=1`;
   const args = [];
-  if (id) { sql += ' AND e.id = ?'; args.push(id); }
-  else {
+  if (id) {
+    // the event, plus its incident-mates (same incident_id, or same store within 2 minutes) so a push deep link shows every angle
+    sql += ` AND (e.id = ? OR e.incident_id = (SELECT incident_id FROM theft_events WHERE id = ? AND incident_id IS NOT NULL)
+             OR (e.location_id = (SELECT location_id FROM theft_events WHERE id = ?)
+                 AND abs(strftime('%s', e.event_time) - (SELECT strftime('%s', event_time) FROM theft_events WHERE id = ?)) <= 120))`;
+    args.push(id, id, id, id);
+  } else {
     if (status === 'unlabeled') sql += ' AND e.label IS NULL';
     if (status === 'labeled') sql += ' AND e.label IS NOT NULL';
     if (locationId) { sql += ' AND e.location_id = ?'; args.push(locationId); }

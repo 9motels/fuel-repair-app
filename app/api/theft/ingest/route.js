@@ -11,7 +11,7 @@ export const maxDuration = 60;
 // `still` (jpg). Upserts the event; when meta.alert is true, pushes a
 // notification to every subscribed phone. Re-posting the same id just refreshes
 // it (the device retries on failure).
-// meta: { id, location_id, camera, event_time, rating, reason, tags, local_note, alert }
+// meta: { id, location_id, camera, event_time, rating, reason, tags, local_note, alert, incident_id? }
 export async function POST(request) {
   if (!deviceAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const form = await request.formData();
@@ -34,16 +34,17 @@ export async function POST(request) {
   }
 
   await db.execute({
-    sql: `INSERT INTO theft_events (id, location_id, camera, event_time, rating, reason, tags, local_note, alerted, clip_path, strip_path, still_path)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    sql: `INSERT INTO theft_events (id, location_id, camera, event_time, rating, reason, tags, local_note, alerted, clip_path, strip_path, still_path, incident_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             rating = excluded.rating, reason = excluded.reason, tags = excluded.tags, local_note = excluded.local_note,
             alerted = MAX(theft_events.alerted, excluded.alerted),
+            incident_id = COALESCE(excluded.incident_id, theft_events.incident_id),
             clip_path = COALESCE(excluded.clip_path, theft_events.clip_path),
             strip_path = COALESCE(excluded.strip_path, theft_events.strip_path),
             still_path = COALESCE(excluded.still_path, theft_events.still_path)`,
     args: [meta.id, loc.id, meta.camera, meta.event_time, rating, meta.reason || '', JSON.stringify(meta.tags || []),
-           meta.local_note || '', meta.alert ? 1 : 0, paths.clip || null, paths.strip || null, paths.still || null],
+           meta.local_note || '', meta.alert ? 1 : 0, paths.clip || null, paths.strip || null, paths.still || null, meta.incident_id || null],
   });
 
   let push = { skipped: true };
