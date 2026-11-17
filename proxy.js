@@ -18,7 +18,7 @@ export async function proxy(request) {
   // Always-open paths: the login screen, the auth API, cron (own secret), and the
   // store Mac's theft endpoints (own secret: THEFT_INGEST_SECRET, checked inside).
   if (pathname === '/login' || pathname.startsWith('/api/auth') || pathname.startsWith('/api/cron')
-      || pathname === '/api/theft/ingest' || pathname === '/api/theft/labels') {
+      || pathname === '/api/theft/ingest' || pathname === '/api/theft/labels' || pathname === '/api/theft/blind/admin') {
     return NextResponse.next();
   }
 
