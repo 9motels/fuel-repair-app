@@ -195,7 +195,10 @@ function IncidentCard({ group, highlight, onLabel }) {
         </span>
       </div>
 
-      {group.events.map((ev) => <CameraView key={ev.id} ev={ev} showHeader={multi} />)}
+      {group.events.map((ev, i) => (
+        <CameraView key={ev.id} ev={ev} showHeader={multi}
+                    sameAsAbove={i > 0 && splitReason(ev.reason).text === splitReason(group.events[0].reason).text} />
+      ))}
 
       <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700">
         {group.label ? (
@@ -240,8 +243,25 @@ function IncidentCard({ group, highlight, onLabel }) {
   );
 }
 
-function CameraView({ ev, showHeader }) {
+// The device appends "[Follow-up: <result> - <detail>]" (pay-or-walk-out check) and prefixes "[<camera> shows it]"
+// on incident-mates. Show the follow-up as a badge and keep the description to one line until tapped.
+const FOLLOW_BADGE = {
+  "LEFT WITHOUT PAYING": "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
+  "Paid at the register": "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+};
+function splitReason(reason) {
+  let text = reason || "";
+  const m = /\s*\[Follow-up: ([^\]]*?)( - ([^\]]*))?\]\s*$/.exec(text);
+  const follow = m ? { label: m[1].trim(), detail: (m[3] || "").trim() } : null;
+  if (m) text = text.slice(0, m.index);
+  text = text.replace(/^\[[^\]]+ shows it\]\s*/, "");
+  return { text: text.trim(), follow };
+}
+
+function CameraView({ ev, showHeader, sameAsAbove }) {
   const [showVideo, setShowVideo] = useState(false);
+  const [open, setOpen] = useState(false);
+  const { text, follow } = splitReason(ev.reason);
   return (
     <div className="border-t border-slate-100 dark:border-slate-700">
       {showHeader && (
@@ -249,7 +269,19 @@ function CameraView({ ev, showHeader }) {
           {ev.camera} · {fmtClock(ev.event_time)}{ev.rating === "likely" ? " · likely" : ""}
         </div>
       )}
-      <p className="px-4 py-2 text-slate-800 dark:text-slate-200">{ev.reason || <span className="text-slate-400">No description.</span>}</p>
+      {follow && (
+        <div className="px-4 pt-2">
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${FOLLOW_BADGE[follow.label] || "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"}`}>
+            {follow.label}
+          </span>
+        </div>
+      )}
+      {!sameAsAbove && (
+        <button onClick={() => setOpen((o) => !o)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300">
+          <span className={open ? "" : "line-clamp-1"}>{text || <span className="text-slate-400">No description.</span>}</span>
+          {open && follow?.detail && <span className="block mt-1 text-slate-500 dark:text-slate-400">Follow-up: {follow.detail}</span>}
+        </button>
+      )}
       {showVideo && ev.clip_url ? (
         <video controls autoPlay playsInline preload="metadata" src={ev.clip_url} className="w-full bg-black max-h-[60vh]" />
       ) : ev.strip_url ? (
